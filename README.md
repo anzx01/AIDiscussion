@@ -1,75 +1,145 @@
-# Next.js 16 Starter Template
+# Multi-Model Decision App (Travel MVP)
 
-A powerful starter template for Next.js 16 projects, featuring:
+A production-ready MVP web app that helps users make 2-day New York trip planning decisions by simulating multiple AI perspectives.
 
-- **Better Auth**: Seamless and secure authentication.
-- **Drizzle ORM**: Elegant and type-safe database management.
-- **Supabase**: Robust backend services for your application.
+## 🎯 Purpose
 
-## Features
+Replace the user behavior of repeatedly asking multiple AIs and manually comparing answers for an important decision.
 
-- Pre-configured authentication with Better Auth.
-- Integrated Drizzle ORM for easy database interactions.
-- Ready-to-use Supabase setup.
-- Scalable and modern tech stack.
+## 🚀 Quick Start
 
-## Getting Started
+### Prerequisites
 
-Follow these steps to set up the project:
+- Node.js 18+
+- PostgreSQL database
 
-### 1\. Clone the Repository
+### Installation
 
-```
-git clone https://github.com/JabirDev/nextjs-better-auth.git
-cd nextjs-better-auth
+1. Install dependencies:
+```bash
+npm install
 ```
 
-### 2\. Install Dependencies
-
-Make sure you have Node.js installed, then run:
-
-```
-bun install
+2. Set up environment variables:
+```bash
+cp .env.example .env
 ```
 
-### 3\. Configure Environment Variables
+Edit `.env` with your database URL and API keys.
 
-Copy the env.example file to create your .env file:
-
-```
-cp env.example .env
-```
-
-Edit the `.env` file with your project's specific configurations:
-
-- Add your Supabase keys and URLs.
-- Configure any required authentication secrets.
-
-### 4\. Setup Drizzle ORM
-
-Generate your Drizzle schema and push into your database:
-
-```
-bun db:push
+3. Set up the database:
+```bash
+npm run db:generate
+npm run db:migrate
 ```
 
-### 5\. Start the Development Server
-
-Run the development server:
-
-```
-bun dev
+4. Run the development server:
+```bash
+npm run dev
 ```
 
-Your application will be available at [http://localhost:3000](http://localhost:3000).
+5. Open [http://localhost:3000](http://localhost:3000)
 
-## Contributing
+## 📋 Features
 
-Contributions are welcome! Feel free to:
+- **Landing Page**: Hero copy with input form for 2-day NYC trip planning
+- **Multi-Model Discussion**: 3-round discussion between AI models:
+  - Planner (GPT-4o-mini): Itinerary structure & synthesis
+  - Reality Checker (GPT-4o): Real-world constraints, timing, crowds
+  - Budget Advisor (DeepSeek Chat): Cost efficiency & alternatives
+- **Results Display**: Structured output showing agreements, disagreements, and recommendations
+- **Email Capture**: Optional email collection after viewing results
+- **Analytics**: Tracks user behavior events
 
-- Open issues for bugs or feature requests.
-- Submit pull requests to improve the project.
+## 🗂️ Project Structure
 
-### License
+```
+src/
+├── app/
+│   ├── page.tsx                    # Landing page
+│   ├── results/[sessionId]/page.tsx # Results page
+│   └── api/
+│       ├── discuss/route.ts        # Multi-model discussion endpoint
+│       ├── analytics/route.ts      # Analytics tracking
+│       ├── email/route.ts          # Email capture
+│       └── session/[sessionId]/route.ts # Session data
+├── components/
+│   ├── email-capture.tsx          # Email capture component
+│   └── ui/                        # UI components
+├── db/
+│   ├── schema/
+│   │   ├── analytics.ts           # Analytics events schema
+│   │   ├── planner.ts             # Planner sessions & emails schema
+│   │   └── index.ts               # Schema exports
+│   └── index.ts                   # Database client
+└── lib/
+    ├── api-config.ts              # API configuration (mock/real modes)
+    └── prompts.ts                 # All prompt templates
+```
 
-This project is licensed under the MIT License.
+## 🔧 Configuration
+
+### Mock Mode (Default)
+
+The app runs in mock mode by default, using pre-generated responses for development. No API keys required.
+
+### Real API Mode
+
+To use real LLM APIs, set in `.env`:
+```bash
+USE_MOCK_API="false"
+OPENAI_API_KEY="your-key"
+DEEPSEEK_API_KEY="your-key"
+```
+
+## 📊 Analytics Events
+
+The app tracks these events:
+- `first_input_submitted` - User submits their question
+- `discussion_viewed_over_30s` - User views results for 30+ seconds
+- `parameters_adjusted` - User clicks "Adjust & Confirm"
+- `result_scrolled_to_bottom` - User scrolls to bottom of results
+- `email_collected` - User provides email
+
+## 🎨 Design Principles
+
+- **Single Focus**: Only for 2-day New York trip planning
+- **No Technical Jargon**: Never expose "LLM", "agent", "model comparison"
+- **User-Centric**: Make users feel like they're doing what they normally do, but faster
+- **Execution via External Links**: Hotels → Booking, Attractions → Maps, Restaurants → Yelp
+
+## 🚀 Deployment
+
+1. Build the app:
+```bash
+npm run build
+```
+
+2. Start the production server:
+```bash
+npm start
+```
+
+## 📝 Notes
+
+- Token limits are enforced to control costs
+- All prompts are in a single, editable file (`src/lib/prompts.ts`)
+- Streaming responses are supported (required for production)
+- No login required for first use
+- Email capture is optional, no forced signup
+
+## 🎯 Success Criteria
+
+This MVP is successful if:
+- Users read the discussion
+- Users adjust parameters
+- Some users leave an email
+
+We do NOT optimize for:
+- DAU
+- Retention
+- Revenue
+
+---
+
+Built with Next.js 16, Drizzle ORM, and TypeScript.
