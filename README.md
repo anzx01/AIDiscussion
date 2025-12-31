@@ -28,22 +28,21 @@
 ### ✨ 主要特性
 
 - **🤖 多智能体讨论**: 3 个 AI 角色进行 3 轮讨论
+
   - **Planner (规划师)**: 使用智谱 GLM-4-flash，负责行程结构设计
   - **Reality Checker (现实检查员)**: 使用智谱 GLM-4-plus，关注现实约束、时间、人流
   - **Budget Advisor (预算顾问)**: 使用 DeepSeek-chat，关注成本效益
-
 - **💬 实时聊天界面**: 微信风格的对话界面
+
   - 按时间顺序显示所有发言
   - 支持📌引用/回复功能
   - 自动滚动到最新消息
   - 实时进度显示
-  - **简短对话式发言**: 每个AI发言3-5句话，像真实会议讨论
-
 - **📊 结构化输出**:
+
   - 一致点列表
   - 分歧点列表
   - 最终推荐行程
-
 - **📈 数据追踪**: 分析用户行为事件
 
 ---
@@ -51,17 +50,20 @@
 ## 技术栈
 
 ### 前端
+
 - **框架**: Next.js 16.1.1 (App Router)
 - **UI 库**: TailwindCSS 4, Radix UI
 - **语言**: TypeScript
 - **状态管理**: React Hooks
 
 ### 后端
+
 - **API 路由**: Next.js API Routes
 - **ORM**: Drizzle ORM
 - **数据库**: PostgreSQL (Supabase)
 
 ### AI 服务
+
 - **智谱 AI**: GLM-4-flash, GLM-4-plus
 - **DeepSeek**: DeepSeek-chat
 
@@ -168,9 +170,11 @@ src/
 ```
 
 **索引**:
+
 - `idx_messages_session_round`: (session_id, round, created_at) - 优化查询性能
 
 **关键设计**:
+
 - Round 2 的消息 `reply_to_id` 指向 Round 1 中同一 agent 的消息
 - 支持按 `created_at` 顺序显示，实现真正的聊天体验
 
@@ -266,14 +270,15 @@ DEEPSEEK_BASE_URL="https://api.deepseek.com/v1"
 ### 🔑 获取 API 密钥
 
 1. **智谱 AI**:
+
    - 访问 [https://open.bigmodel.cn/](https://open.bigmodel.cn/)
    - 注册并创建 API Key
-
 2. **DeepSeek**:
+
    - 访问 [https://platform.deepseek.com/](https://platform.deepseek.com/)
    - 注册并创建 API Key
-
 3. **Supabase**:
+
    - 访问 [https://supabase.com](https://supabase.com)
    - 创建新项目
    - 获取数据库连接字符串
@@ -303,6 +308,7 @@ node scripts/run-migration.js
 ```
 
 这将创建以下表：
+
 - ✅ `planner_session`
 - ✅ `discussion_messages`
 - ✅ `analytics_event`
@@ -406,6 +412,7 @@ node scripts/test-messages-table.js
 ```
 
 预期输出：
+
 ```
 ✓ discussion_messages table exists
 Columns: 7
@@ -424,6 +431,7 @@ Columns: 7
 创建新的讨论会话。
 
 **请求体**:
+
 ```typescript
 {
   question: string;      // 包含目的地的旅游问题，如 "Plan a 2-day trip to Paris"
@@ -434,6 +442,7 @@ Columns: 7
 ```
 
 **响应**:
+
 ```typescript
 {
   sessionId: string;
@@ -447,6 +456,7 @@ Columns: 7
 获取会话信息和所有消息。
 
 **响应**:
+
 ```typescript
 {
   sessionId: string;
@@ -515,19 +525,10 @@ Planner → 综合考虑 Round 1 和 Round 2 的所有观点
 
 #### 消息顺序
 
-完全按时间顺序（`created_at`）显示，不按轮次分组。每个AI发言简短（3-5句话），像真实会议讨论：
+完全按时间顺序（`created_at`）显示，不按轮次分组：
 
 ```
-12:30:00 [Planner, Round 1] 基于平衡节奏和灵活预算，我建议第一天从时代广场和洛克菲勒中心开始...
-12:31:15 [Reality Checker, Round 1] 我建议第一天从中央公园开始（早上人少），然后大都会博物馆...
-12:32:30 [Budget Advisor, Round 1] 从预算角度，我建议使用免费的史泰登岛渡轮看自由女神像...
-12:33:45 [Planner, Round 2] 📌 Planner: 基于平衡节奏...
-                          Reality Checker，我喜欢你的人流策略，但Top of the Rock和帝国大厦同一天去有点重复...
-12:34:00 [Reality Checker, Round 2] 📌 Reality Checker: 我建议第一天从...
-                            Planner，时代广场早上9点仍然很拥挤。另外，提到百老汇演出但没有预订时间不现实...
-12:35:00 [Budget Advisor, Round 2] 📌 Budget Advisor: 从预算角度...
-                              Planner，你的方案加起来很快：Top of the Rock ($40+)、MoMA ($30)...
-12:36:00 [Planner, Round 3] 综合以上讨论，我的最终建议是...
+wowo
 ```
 
 #### 视觉区分
@@ -562,6 +563,7 @@ Planner → 综合考虑 Round 1 和 Round 2 的所有观点
 **错误**: `Failed query` 或 `ENOTFOUND`
 
 **解决**:
+
 ```bash
 # 检查 .env 文件中的 DATABASE_URL
 grep DATABASE_URL .env
@@ -577,6 +579,7 @@ grep DATABASE_URL .env
 **错误**: `ZHIPU_API error: 401` 或 `DEEPSEEK API error: 401`
 
 **解决**:
+
 ```bash
 # 检查 API 密钥是否正确
 grep "API_KEY" .env
@@ -593,6 +596,7 @@ curl -X POST https://open.bigmodel.cn/api/paas/v4/chat/completions \
 **错误**: `relation "discussion_messages" does not exist`
 
 **解决**:
+
 ```bash
 # 重新创建表
 node scripts/run-migration.js
@@ -608,6 +612,7 @@ node scripts/test-messages-table.js
 **解决**: 确保问题字段非空且包含目的地信息。
 
 例如：
+
 - ✅ "Plan a 2-day trip to Paris"
 - ✅ "I want to visit Tokyo for 2 days"
 - ✅ "Help me plan a weekend in London"
@@ -618,6 +623,7 @@ node scripts/test-messages-table.js
 **错误**: TypeScript 或 build 错误
 
 **解决**:
+
 ```bash
 # 清除构建缓存
 rm -rf .next
@@ -633,6 +639,7 @@ npm run dev
 #### 6. 消息不显示
 
 **检查清单**:
+
 - [ ] 服务器终端是否有错误日志？
 - [ ] 浏览器控制台是否有错误？
 - [ ] `/api/discuss/[sessionId]` 是否返回消息？
@@ -650,6 +657,7 @@ psql $DATABASE_URL -c "SELECT COUNT(*) FROM discussion_messages;"
 ### 添加新的 AI Agent
 
 1. 在 `src/lib/prompts.ts` 中添加新 agent：
+
 ```typescript
 export const PARTICIPANTS = {
   // ...existing agents
@@ -680,6 +688,7 @@ export const SYSTEM_PROMPTS = {
 ### 自定义 UI 样式
 
 聊天组件位于 `src/components/chat/`:
+
 - `ChatMessage.tsx` - 单条消息样式
 - `ChatContainer.tsx` - 聊天容器逻辑
 
@@ -712,6 +721,7 @@ npm run build
 ### 生产环境变量
 
 确保设置所有必需的环境变量，特别是：
+
 - `DATABASE_URL`
 - `ZHIPU_API_KEY`
 - `DEEPSEEK_API_KEY`
@@ -737,4 +747,4 @@ MIT
 ---
 
 **最后更新**: 2025-12-31
-**版本**: 3.0.0 - 通用旅游规划版本 (支持全球任意目的地，简短对话式讨论)
+**版本**: 3.0.0 - 通用旅游规划版本 (支持全球任意目的地)

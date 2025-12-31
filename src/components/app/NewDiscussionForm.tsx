@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ChevronDown, ArrowRight } from "lucide-react";
-import { ControlButton } from "./ControlButton";
+import { ChevronDown, Send, Sparkles } from "lucide-react";
 
 interface NewDiscussionFormProps {
   onDiscussionStarted: (sessionId: string) => void;
@@ -22,9 +21,15 @@ export function NewDiscussionForm({ onDiscussionStarted }: NewDiscussionFormProp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!question.trim()) return;
+    console.log("Form submitted with question:", question);
+
+    if (!question.trim()) {
+      console.log("Question is empty, not submitting");
+      return;
+    }
 
     setIsLoading(true);
+    console.log("Starting API request to /api/discuss");
 
     try {
       const response = await fetch("/api/discuss", {
@@ -38,12 +43,16 @@ export function NewDiscussionForm({ onDiscussionStarted }: NewDiscussionFormProp
         }),
       });
 
+      console.log("API response status:", response.status);
+
       const data = await response.json();
+      console.log("API response data:", data);
 
       if (!response.ok) {
         throw new Error(data.details || data.error || "Failed to start discussion");
       }
 
+      console.log("Discussion started with session ID:", data.sessionId);
       onDiscussionStarted(data.sessionId);
     } catch (error) {
       console.error("Error:", error);
@@ -53,47 +62,59 @@ export function NewDiscussionForm({ onDiscussionStarted }: NewDiscussionFormProp
   };
 
   return (
-    <>
-      {/* Left: Hero/Title Section */}
-      <div className="hidden md:flex md:w-1/2 flex-col justify-center px-16 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-        <div className="space-y-6">
-          <h1 className="text-5xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
-            Stop asking the same question to multiple AIs.
-          </h1>
-          <p className="text-3xl font-semibold text-slate-700 dark:text-slate-300">
-            We already did that for you.
-          </p>
-          <p className="text-2xl font-medium text-blue-600 dark:text-blue-400">
-            One decision. Multiple minds.
-          </p>
-          <p className="text-lg text-slate-600 dark:text-slate-400">
-            Designed for decisions you don't want to get wrong.
-          </p>
-        </div>
-      </div>
-
-      {/* Right: Input Section */}
-      <div className="w-full md:w-1/2 flex items-center justify-center p-8 bg-white dark:bg-slate-900">
-        <div className="w-full max-w-lg space-y-6">
-          {/* Mobile Title */}
-          <div className="md:hidden text-center mb-8">
-            <h1 className="mb-2 text-3xl font-bold text-slate-900 dark:text-slate-50">
-              One decision.
-            </h1>
-            <p className="text-xl text-blue-600 dark:text-blue-400">Multiple minds.</p>
+    <div className="flex flex-col h-screen bg-white dark:bg-slate-900">
+      {/* Main Content Area */}
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-3xl space-y-8">
+          {/* Hero Text */}
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Sparkles className="h-8 w-8 text-blue-600" />
+              <h1 className="text-4xl font-bold text-slate-900 dark:text-slate-50">
+                Start a New Discussion
+              </h1>
+            </div>
+            <p className="text-xl text-slate-600 dark:text-slate-400">
+              Ask a question and let multiple AI agents collaborate on the answer
+            </p>
           </div>
 
+          {/* Input Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Main Input */}
-            <div>
+            <div className="relative flex items-center">
               <Input
                 type="text"
-                placeholder="Plan a 2-day trip to Paris..."
+                placeholder="What would you like to discuss? (e.g., Plan a 2-day trip to Paris)"
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
-                className="text-xl h-16 border-2 border-slate-200 focus:border-blue-500 dark:border-slate-700 dark:focus:border-blue-500"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e as any);
+                  }
+                }}
+                className="text-lg h-14 pr-16 border-2 border-slate-200 focus:border-blue-500 dark:border-slate-700 dark:focus:border-blue-500"
                 disabled={isLoading}
               />
+              <Button
+                type="button"
+                onClick={(e) => {
+                  console.log("Button clicked! Question:", question);
+                  console.log("Button disabled:", !question.trim() || isLoading);
+                  e.preventDefault();
+                  handleSubmit(e as any);
+                }}
+                disabled={!question.trim() || isLoading}
+                size="icon"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full"
+              >
+                {isLoading ? (
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+              </Button>
             </div>
 
             {/* Options Toggle */}
@@ -103,13 +124,13 @@ export function NewDiscussionForm({ onDiscussionStarted }: NewDiscussionFormProp
                 onClick={() => setShowOptions(!showOptions)}
                 className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors"
               >
-                <span>Options</span>
+                <span>Advanced Options</span>
                 <ChevronDown className={`h-4 w-4 transition-transform ${showOptions ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Collapsible Options */}
               {showOptions && (
-                <div className="mt-4 space-y-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                <div className="mt-4 space-y-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                   {/* Pace */}
                   <div>
                     <Label className="mb-2 block text-sm font-semibold">Pace</Label>
@@ -181,24 +202,19 @@ export function NewDiscussionForm({ onDiscussionStarted }: NewDiscussionFormProp
                 </div>
               )}
             </div>
-
-            {/* Submit Button - Arrow */}
-            <div className="flex justify-end">
-              <ControlButton
-                status="idle"
-                isPaused={false}
-                isLoading={isLoading}
-                onSubmit={handleSubmit}
-              />
-            </div>
           </form>
 
           {/* Info Text */}
-          <p className="text-center text-xs text-slate-500 dark:text-slate-400">
-            For 2-day trip planning to any destination worldwide
+          <p className="text-center text-sm text-slate-500 dark:text-slate-400">
+            Multiple AI agents will collaborate to provide comprehensive answers
           </p>
         </div>
       </div>
-    </>
+
+      {/* Bottom Bar - Empty for consistency with ActiveDiscussion */}
+      <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-700 h-20">
+        {/* This space is reserved for future features or to maintain consistent layout */}
+      </div>
+    </div>
   );
 }

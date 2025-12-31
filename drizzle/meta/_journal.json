@@ -15,6 +15,13 @@
       "when": 1767175859697,
       "tag": "0001_light_starbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767220242372,
+      "tag": "0002_careless_toad_men",
+      "breakpoints": true
     }
   ]
 }

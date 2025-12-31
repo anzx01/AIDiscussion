@@ -197,8 +197,47 @@ async function runDiscussion(
   };
 }> {
   if (apiConfig.useMockApi) {
-    // Return mock data for development
+    // Return mock data for development, but still save to database
     await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // Save mock messages to database
+    const round1MessageIds: Record<string, string> = {};
+
+    // Round 1 messages
+    for (const [key, content] of Object.entries(MOCK_DISCUSSION.round1)) {
+      const messageId = crypto.randomUUID();
+      round1MessageIds[key] = messageId;
+      await db.insert(discussionMessage).values({
+        id: messageId,
+        sessionId,
+        agentId: key,
+        round: 1,
+        content,
+      });
+    }
+
+    // Round 2 messages
+    for (const [key, content] of Object.entries(MOCK_DISCUSSION.round2)) {
+      const messageId = crypto.randomUUID();
+      await db.insert(discussionMessage).values({
+        id: messageId,
+        sessionId,
+        agentId: key,
+        round: 2,
+        content,
+        replyToId: round1MessageIds[key], // Reply to own Round 1 proposal
+      });
+    }
+
+    // Round 3 synthesis
+    await db.insert(discussionMessage).values({
+      id: crypto.randomUUID(),
+      sessionId,
+      agentId: "planner",
+      round: 3,
+      content: MOCK_DISCUSSION.round3.recommendation,
+    });
+
     return MOCK_DISCUSSION;
   }
 

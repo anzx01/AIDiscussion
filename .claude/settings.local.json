@@ -10,7 +10,8 @@
       "Bash(npm run db:generate:*)",
       "Bash(node:*)",
       "Bash(curl:*)",
-      "Bash(findstr DATABASE_URL)"
+      "Bash(findstr DATABASE_URL)",
+      "Bash(taskkill:*)"
     ],
     "deny": [],
     "ask": []

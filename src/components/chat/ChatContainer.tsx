@@ -119,7 +119,7 @@ export function ChatContainer({ sessionId, status, onComplete }: ChatContainerPr
         <div className="text-center py-4">
           <div className="inline-flex items-center gap-2 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-4 py-2 rounded-full">
             <span className="text-xl">✅</span>
-            <span className="font-medium">Discussion completed! Redirecting...</span>
+            <span className="font-medium">Discussion completed! Scroll up to see the final recommendation.</span>
           </div>
         </div>
       )}
