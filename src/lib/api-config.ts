@@ -9,10 +9,10 @@ export const apiConfig = {
   // Mode switching
   useMockApi: process.env.USE_MOCK_API !== "false", // Default to true for development
 
-  // OpenAI Configuration
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY || "",
-    baseUrl: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
+  // Zhipu AI (智谱AI) Configuration
+  zhipu: {
+    apiKey: process.env.OPENAI_API_KEY || "", // Using OPENAI_API_KEY for Zhipu
+    baseUrl: process.env.OPENAI_BASE_URL || "https://open.bigmodel.cn/api/paas/v4",
   },
 
   // DeepSeek Configuration
@@ -23,9 +23,9 @@ export const apiConfig = {
 
   // Model mappings
   models: {
-    planner: process.env.PLANNER_MODEL || "gpt-4o-mini", // GPT-4o-mini
-    realityChecker: process.env.REALITY_CHECKER_MODEL || "gpt-4o", // GPT-4o or Grok
-    budgetAdvisor: process.env.BUDGET_ADVISOR_MODEL || "deepseek-chat", // DeepSeek Chat
+    planner: process.env.PLANNER_MODEL || "glm-4-flash", // Zhipu GLM-4 Flash (fast)
+    realityChecker: process.env.REALITY_CHECKER_MODEL || "glm-4-plus", // Zhipu GLM-4 Plus (powerful)
+    budgetAdvisor: process.env.BUDGET_ADVISOR_MODEL || "deepseek-chat", // DeepSeek Chat (cost-effective)
   },
 
   // Token limits for cost control

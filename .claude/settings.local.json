@@ -4,7 +4,12 @@
       "Bash(cat:*)",
       "Bash(npm install:*)",
       "Bash(test:*)",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(ping:*)",
+      "Bash(npm run db:migrate:*)",
+      "Bash(npm run db:generate:*)",
+      "Bash(node:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

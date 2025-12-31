@@ -23,6 +23,7 @@ export default function Home() {
 
     try {
       // Create a new session
+      console.log("Sending request to /api/discuss...");
       const response = await fetch("/api/discuss", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -34,25 +35,29 @@ export default function Home() {
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to start discussion");
+      const responseText = await response.text();
+      console.log("Response text:", responseText);
 
-      const data = await response.json();
-      // Track first_input_submitted event
-      await fetch("/api/analytics", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventType: "first_input_submitted",
-          sessionId: data.sessionId,
-        }),
-      });
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Failed to parse response as JSON:", responseText);
+        data = { rawResponse: responseText };
+      }
 
-      // Redirect to results page
-      router.push(`/results/${data.sessionId}`);
+      if (!response.ok) {
+        console.error("API Error:", data);
+        throw new Error(data.details || data.error || data.rawResponse || "Failed to start discussion");
+      }
+
+      console.log("Session created:", data.sessionId);
+
+      // Redirect to progress page immediately
+      router.push(`/progress/${data.sessionId}`);
     } catch (error) {
       console.error("Error:", error);
       alert("Failed to start discussion. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };

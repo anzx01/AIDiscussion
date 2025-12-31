@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, json, integer } from "drizzle-orm/pg-core";
 
 export const plannerSession = pgTable("planner_session", {
   id: text("id").primaryKey(),
@@ -31,5 +31,16 @@ export const emailCapture = pgTable("email_capture", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const discussionMessage = pgTable("discussion_messages", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id").notNull().references(() => plannerSession.id),
+  agentId: text("agent_id").notNull(), // 'planner', 'realityChecker', 'budgetAdvisor'
+  round: integer("round").notNull(), // 1, 2, 3
+  content: text("content").notNull(),
+  replyToId: text("reply_to_id"), // For quote/reply - references discussion_messages.id
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export type PlannerSessionType = typeof plannerSession.$inferSelect;
 export type EmailCaptureType = typeof emailCapture.$inferSelect;
+export type DiscussionMessageType = typeof discussionMessage.$inferSelect;

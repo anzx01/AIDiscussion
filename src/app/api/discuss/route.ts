@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { plannerSession } from "@/db/schema/planner";
+import { plannerSession, discussionMessage } from "@/db/schema/planner";
 import { apiConfig } from "@/lib/api-config";
 import {
   getRound1Prompt,
   getRound2Prompt,
   getRound3Prompt,
+  getSystemPrompt,
   PARTICIPANTS,
 } from "@/lib/prompts";
 import { eq } from "drizzle-orm";
@@ -94,29 +95,82 @@ Reality Checker's Proposal: Met Museum "pay what you wish" is only for NY reside
 };
 
 /**
- * Call LLM API (or use mock data)
+ * Call LLM API (supports both Zhipu AI and DeepSeek)
  */
 async function callLLM(
   model: string,
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  provider: "zhipu" | "deepseek"
 ): Promise<string> {
+  console.log(`callLLM: provider=${provider}, model=${model}`);
+
   if (apiConfig.useMockApi) {
     // Simulate API delay
     await new Promise((resolve) => setTimeout(resolve, 500));
+    console.log("callLLM: Using mock response");
     return "Mock response for development";
   }
 
-  // Real API call logic would go here
-  // This is a placeholder for the actual implementation
-  // You would use OpenAI SDK or similar here
-  return "Real API response placeholder";
+  try {
+    // Select API configuration based on provider
+    const config =
+      provider === "zhipu"
+        ? {
+            baseUrl: apiConfig.zhipu.baseUrl,
+            apiKey: apiConfig.zhipu.apiKey,
+          }
+        : {
+            baseUrl: apiConfig.deepseek.baseUrl,
+            apiKey: apiConfig.deepseek.apiKey,
+          };
+
+    console.log(`callLLM: Calling ${config.baseUrl}/chat/completions`);
+    console.log(`callLLM: API Key exists: ${!!config.apiKey}`);
+    console.log(`callLLM: System prompt length: ${systemPrompt.length}`);
+    console.log(`callLLM: User prompt length: ${userPrompt.length}`);
+
+    const response = await fetch(`${config.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+      }),
+    });
+
+    console.log(`callLLM: Response status: ${response.status}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`callLLM: Error response:`, errorText);
+      throw new Error(`${provider.toUpperCase()} API error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log(`callLLM: Success, response length: ${data.choices[0].message.content.length}`);
+    return data.choices[0].message.content;
+  } catch (error) {
+    console.error(`Error calling ${provider.toUpperCase()}:`, error);
+    throw error;
+  }
 }
 
 /**
- * Run the 3-round discussion
+ * Run the 3-round discussion with progress updates
  */
-async function runDiscussion(params: DiscussRequest): Promise<{
+async function runDiscussion(
+  params: DiscussRequest,
+  sessionId: string
+): Promise<{
   round1: Record<string, string>;
   round2: Record<string, string>;
   round3: {
@@ -131,11 +185,13 @@ async function runDiscussion(params: DiscussRequest): Promise<{
     return MOCK_DISCUSSION;
   }
 
-  // Real discussion logic would go here
   // Round 1: Independent proposals
+  console.log("Starting Round 1...");
   const round1: Record<string, string> = {};
+  const round1MessageIds: Record<string, string> = {};
   for (const [key, participant] of Object.entries(PARTICIPANTS)) {
-    const systemPrompt = ""; // Would get from prompts.ts
+    console.log(`Round 1: ${key} proposing...`);
+    const systemPrompt = getSystemPrompt(key as any);
     const userPrompt = getRound1Prompt(
       key as any,
       params.question,
@@ -143,25 +199,88 @@ async function runDiscussion(params: DiscussRequest): Promise<{
       params.budget,
       params.focus
     );
-    round1[key] = await callLLM(participant.model, systemPrompt, userPrompt);
+    round1[key] = await callLLM(
+      participant.model,
+      systemPrompt,
+      userPrompt,
+      participant.provider
+    );
+    console.log(`Round 1: ${key} completed`);
+
+    // Save individual message to discussion_messages table
+    const messageId = crypto.randomUUID();
+    round1MessageIds[key] = messageId;
+    await db.insert(discussionMessage).values({
+      id: messageId,
+      sessionId,
+      agentId: key,
+      round: 1,
+      content: round1[key],
+    });
+
+    // Update database with partial results (for backward compatibility)
+    await db
+      .update(plannerSession)
+      .set({ round1Proposals: round1 })
+      .where(eq(plannerSession.id, sessionId));
   }
+  console.log("Round 1 completed");
 
   // Round 2: Critiques
+  console.log("Starting Round 2...");
   const round2: Record<string, string> = {};
   for (const [key, participant] of Object.entries(PARTICIPANTS)) {
-    const systemPrompt = ""; // Would get from prompts.ts
+    console.log(`Round 2: ${key} critiquing...`);
+    const systemPrompt = getSystemPrompt(key as any);
     const userPrompt = getRound2Prompt(key as any, round1);
-    round2[key] = await callLLM(participant.model, systemPrompt, userPrompt);
+    round2[key] = await callLLM(
+      participant.model,
+      systemPrompt,
+      userPrompt,
+      participant.provider
+    );
+    console.log(`Round 2: ${key} completed`);
+
+    // Save individual message to discussion_messages table
+    // Set replyToId to reference this agent's Round 1 proposal
+    const messageId = crypto.randomUUID();
+    await db.insert(discussionMessage).values({
+      id: messageId,
+      sessionId,
+      agentId: key,
+      round: 2,
+      content: round2[key],
+      replyToId: round1MessageIds[key], // Reply to own Round 1 proposal
+    });
+
+    // Update database with partial results (for backward compatibility)
+    await db
+      .update(plannerSession)
+      .set({ round2Critiques: round2 })
+      .where(eq(plannerSession.id, sessionId));
   }
+  console.log("Round 2 completed");
 
   // Round 3: Synthesis
-  const systemPrompt = ""; // Would get from prompts.ts
+  console.log("Starting Round 3 (Synthesis)...");
+  const systemPrompt = getSystemPrompt("planner");
   const userPrompt = getRound3Prompt(round1, round2);
   const round3Result = await callLLM(
     PARTICIPANTS.planner.model,
     systemPrompt,
-    userPrompt
+    userPrompt,
+    PARTICIPANTS.planner.provider
   );
+  console.log("Round 3 completed");
+
+  // Save Round 3 synthesis message
+  await db.insert(discussionMessage).values({
+    id: crypto.randomUUID(),
+    sessionId,
+    agentId: "planner",
+    round: 3,
+    content: round3Result,
+  });
 
   return {
     round1,
@@ -176,24 +295,29 @@ async function runDiscussion(params: DiscussRequest): Promise<{
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("=== /api/discuss called ===");
     const body: DiscussRequest = await req.json();
+    console.log("Request body:", body);
 
     // Validate input
     if (!body.question || body.question.trim().length === 0) {
+      console.log("Validation failed: Question is required");
       return NextResponse.json({ error: "Question is required" }, { status: 400 });
     }
 
     // Validate that this is about 2-day NYC trip
     const lowerQuestion = body.question.toLowerCase();
-    if (
-      !lowerQuestion.includes("new york") &&
-      !lowerQuestion.includes("nyc") &&
-      !lowerQuestion.includes("new york city")
-    ) {
+    const hasNewYork =
+      lowerQuestion.includes("new york") ||
+      lowerQuestion.includes("newyork") ||
+      lowerQuestion.includes("nyc") ||
+      lowerQuestion.includes("new york city");
+
+    if (!hasNewYork) {
       return NextResponse.json(
         {
           error:
-            "This tool only supports 2-day New York trip planning. Please mention New York or NYC in your question.",
+            "This tool only supports 2-day New York trip planning. Please mention New York, NYC, or NewYork in your question.",
         },
         { status: 400 }
       );
@@ -203,42 +327,66 @@ export async function POST(req: NextRequest) {
     const sessionId = crypto.randomUUID();
 
     // Create session in database
-    await db.insert(plannerSession).values({
-      id: sessionId,
-      question: body.question.trim(),
-      pace: body.pace,
-      budget: body.budget,
-      focus: body.focus,
-      status: "processing",
-    });
+    console.log("Creating session in database...");
+    try {
+      await db.insert(plannerSession).values({
+        id: sessionId,
+        question: body.question.trim(),
+        pace: body.pace,
+        budget: body.budget,
+        focus: body.focus,
+        status: "processing",
+      });
+      console.log("Session created successfully");
+    } catch (error) {
+      console.error("Failed to create session:", error);
+      throw error;
+    }
 
-    // Run discussion asynchronously (in production, use a background job)
-    // For now, we'll do it synchronously
-    const discussionResult = await runDiscussion(body);
-
-    // Update session with results
-    await db
-      .update(plannerSession)
-      .set({
-        round1Proposals: discussionResult.round1,
-        round2Critiques: discussionResult.round2,
-        round3Consensus: discussionResult.round3,
-        agreements: JSON.stringify(discussionResult.round3.agreements),
-        disagreements: JSON.stringify(discussionResult.round3.disagreements),
-        recommendation: discussionResult.round3.recommendation,
-        status: "completed",
+    // Return immediately with sessionId, run discussion in background
+    // Run discussion asynchronously (don't await)
+    runDiscussion(body, sessionId)
+      .then(async (discussionResult) => {
+        console.log("Discussion completed, updating database...");
+        // Update session with results
+        await db
+          .update(plannerSession)
+          .set({
+            round1Proposals: discussionResult.round1,
+            round2Critiques: discussionResult.round2,
+            round3Consensus: discussionResult.round3,
+            agreements: JSON.stringify(discussionResult.round3.agreements),
+            disagreements: JSON.stringify(discussionResult.round3.disagreements),
+            recommendation: discussionResult.round3.recommendation,
+            status: "completed",
+          })
+          .where(eq(plannerSession.id, sessionId));
+        console.log("Database updated successfully");
       })
-      .where(eq(plannerSession.id, sessionId));
+      .catch((error) => {
+        console.error("Discussion failed:", error);
+        // Update session with failed status
+        db.update(plannerSession)
+          .set({ status: "failed" })
+          .where(eq(plannerSession.id, sessionId));
+      });
 
     return NextResponse.json({
       sessionId,
-      status: "completed",
-      message: "Discussion completed successfully",
+      status: "processing",
+      message: "Discussion started",
     });
   } catch (error) {
     console.error("Error in /api/discuss:", error);
+    console.error("Error details:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

@@ -15,19 +15,22 @@ export const PARTICIPANTS = {
   planner: {
     role: "Planner",
     purpose: "itinerary structure & synthesis",
-    model: "gpt-4o-mini",
+    model: "glm-4-flash",
+    provider: "zhipu" as const,
   },
 
   realityChecker: {
     role: "Reality Checker",
     purpose: "real-world constraints, timing, crowds",
-    model: "gpt-4o",
+    model: "glm-4-plus",
+    provider: "zhipu" as const,
   },
 
   budgetAdvisor: {
     role: "Budget Advisor",
     purpose: "cost efficiency & alternatives",
     model: "deepseek-chat",
+    provider: "deepseek" as const,
   },
 } as const;
 
