@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, json, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, json, integer, boolean } from "drizzle-orm/pg-core";
 
 export const plannerSession = pgTable("planner_session", {
   id: text("id").primaryKey(),
@@ -18,6 +18,7 @@ export const plannerSession = pgTable("planner_session", {
   recommendation: text("recommendation"), // JSON string with itinerary
 
   status: text("status").notNull().default("pending"), // pending | processing | completed | failed
+  isPaused: boolean("is_paused").notNull().default(false), // For pause/resume functionality
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

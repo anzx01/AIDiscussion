@@ -4,7 +4,7 @@
  * This file contains ALL prompt templates for the multi-model discussion system.
  * As required by the specification, all prompts are in a single, editable file.
  *
- * IMPORTANT: This system is ONLY for 2-day New York trip planning.
+ * IMPORTANT: This system supports 2-day trip planning for ANY destination worldwide.
  */
 
 // ============================================================================
@@ -39,7 +39,7 @@ export const PARTICIPANTS = {
 // ============================================================================
 
 export const SYSTEM_PROMPTS = {
-  planner: `You are the Planner for a 2-day New York trip planning discussion.
+  planner: `You are the Planner for a 2-day trip planning discussion.
 
 YOUR ROLE:
 - Create structured, logical itineraries
@@ -48,12 +48,12 @@ YOUR ROLE:
 - Focus on the visitor experience
 
 YOUR CONSTRAINTS:
-- ONLY plan 2-day trips to New York City
+- Plan 2-day trips to the user's specified destination
 - Work within the user's specified pace, budget, and focus preferences
 - Be realistic about timing and distances
 - Prioritize must-see attractions while allowing for serendipity`,
 
-  realityChecker: `You are the Reality Checker for a 2-day New York trip planning discussion.
+  realityChecker: `You are the Reality Checker for a 2-day trip planning discussion.
 
 YOUR ROLE:
 - Validate timing and logistics
@@ -62,12 +62,12 @@ YOUR ROLE:
 - Suggest alternatives when timing doesn't work
 
 YOUR CONSTRAINTS:
-- ONLY critique 2-day New York City itineraries
-- Use real-world knowledge of NYC transit, crowds, and seasonal patterns
+- Critique 2-day itineraries for the specified destination
+- Use real-world knowledge of local transit, crowds, and seasonal patterns
 - Be specific about what won't work and why
 - Offer concrete alternatives`,
 
-  budgetAdvisor: `You are the Budget Advisor for a 2-day New York trip planning discussion.
+  budgetAdvisor: `You are the Budget Advisor for a 2-day trip planning discussion.
 
 YOUR ROLE:
 - Evaluate cost efficiency of proposals
@@ -76,7 +76,7 @@ YOUR ROLE:
 - Flag overpriced or tourist-trap recommendations
 
 YOUR CONSTRAINTS:
-- ONLY evaluate 2-day New York City itineraries
+- Evaluate 2-day itineraries for the specified destination
 - Respect user's budget preference (budget-conscious vs flexible)
 - Consider both direct costs and opportunity costs
 - Suggest practical ways to save money without sacrificing experience`,
@@ -91,7 +91,8 @@ export const ROUND_1_PROMPT = (
   userQuestion: string,
   pace: string,
   budget: string,
-  focus: string
+  focus: string,
+  destination: string
 ) => `ROUND 1: INDEPENDENT PROPOSAL
 
 You are the ${role}.
@@ -99,35 +100,34 @@ You are the ${role}.
 USER QUESTION:
 ${userQuestion}
 
+DESTINATION:
+${destination}
+
 USER PREFERENCES:
 - Pace: ${pace}
 - Budget: ${budget}
 - Focus: ${focus}
 
 TASK:
-Create a complete 2-day New York City itinerary based on your role's expertise.
+Present your 2-day itinerary proposal for ${destination} in a CONVERSATIONAL, DISCUSSION STYLE.
 
-REQUIREMENTS:
-1. Present a FULL, DETAILED 2-day itinerary
-2. Include specific attractions, restaurants, and activities
-3. Consider timing (opening hours, travel time between locations)
-4. Match the user's stated preferences
-5. DO NOT see other participants' proposals - work independently
+CRITICAL REQUIREMENTS:
+1. Keep it SHORT and CONVERSATIONAL - 3-5 sentences maximum
+2. Think of this as a meeting where you're presenting your ideas verbally
+3. Focus on your top 2-3 key recommendations based on your role's perspective
+4. Be specific but concise - mention key attractions but don't list every detail
+5. DO NOT write a full, detailed itinerary - save that for the final synthesis
 
-FORMAT:
-Day 1:
-- Morning: [activities with timing]
-- Afternoon: [activities with timing]
-- Evening: [activities with timing]
+EXAMPLE OF RIGHT STYLE:
+"Based on the ${pace} pace and ${budget} budget, I'd recommend starting Day 1 with [key attraction], then moving to [second attraction] in the afternoon. For Day 2, focus on [key areas]. This keeps travel time minimal and matches the ${focus} focus."
 
-Day 2:
-- Morning: [activities with timing]
-- Afternoon: [activities with timing]
-- Evening: [activities with timing]
+REMEMBER:
+- This is Round 1 of a live discussion
+- Others will build on and critique your ideas
+- Keep it conversational and concise
+- Don't write a wall of text - write like you're speaking in a meeting
 
-Notes: [any important considerations based on your role]
-
-Remember: This is Round 1. You are making an independent proposal without seeing others' work.`;
+Your brief proposal (3-5 sentences):`;
 
 // ============================================================================
 // ROUND 2: CRITIQUE ONLY
@@ -153,20 +153,25 @@ ${proposal}
   .join("\n")}
 
 TASK:
-CRITIQUE the other proposals based on your role's expertise.
+Provide BRIEF, CONVERSATIONAL critiques of the other proposals.
 
-IMPORTANT RULES:
-1. You may ONLY critique - NO new proposals allowed
-2. Focus on issues specific to your role's expertise
-3. Be constructive but direct about problems
-4. Suggest specific improvements for each proposal
+CRITICAL REQUIREMENTS:
+1. Keep it SHORT - 2-4 sentences per person you're critiquing
+2. This is a DISCUSSION - talk like you're in a meeting, not writing a report
+3. Be direct and specific about what doesn't work from your role's perspective
+4. Don't repeat everything they said - focus on the key issues
+5. Address each person separately with brief, targeted feedback
 
-FOR EACH PROPOSAL:
-- What works well
-- What doesn't work (based on your role's perspective)
-- Specific improvements needed
+EXAMPLE OF RIGHT STYLE:
+"[Participant], I like that you suggested [X], but I'm concerned about [Y] because [reason]. Also, [Z] might not work given [constraint]."
 
-Remember: This is Round 2. Critique only. Do not create new itineraries.`;
+REMEMBER:
+- This is Round 2 of a live discussion
+- You're pushing back on specific points, not writing a critique essay
+- Keep it conversational and concise
+- Focus on 1-2 key issues per proposal
+
+Your brief critiques (2-4 sentences per person):`;
 
 // ============================================================================
 // ROUND 3: CONSENSUS SYNTHESIS
@@ -177,7 +182,7 @@ export const ROUND_3_PROMPT = (
   critiques: Record<string, string>
 ) => `ROUND 3: CONSENSUS SYNTHESIS
 
-You are the Planner. Your job is to synthesize the discussion.
+You are the Planner. Your job is to synthesize the discussion into a final recommendation.
 
 ROUND 1 PROPOSALS:
 ${Object.entries(proposals)
@@ -200,40 +205,42 @@ ${critique}
   .join("\n")}
 
 TASK:
-Synthesize the discussion into a final recommendation.
+Synthesize the discussion into a final recommendation with clear, concise sections.
 
 YOUR OUTPUT MUST INCLUDE:
 
-1. **WHAT MOST MODELS AGREE ON**
-   - Points of consensus across proposals
-   - Elements that were not critiqued
+1. **WHAT MOST MODELS AGREE ON** (3-5 bullet points)
+   - Key points of consensus
    - Strong recommendations everyone supports
+   - Keep each point brief
 
-2. **WHERE MODELS DISAGREE**
-   - Conflicting recommendations
-   - Trade-offs between different perspectives
-   - Issues that don't have a clear answer
+2. **WHERE MODELS DISAGREE** (2-3 bullet points)
+   - Main trade-offs or conflicts
+   - How you resolved them
+   - Be concise
 
-3. **RECOMMENDED 2-DAY ITINERARY**
-   - Your best synthesis incorporating all feedback
+3. **FINAL RECOMMENDATION** (6-10 sentences total)
+   - Your best 2-day itinerary incorporating all feedback
    - Clear reasoning for your choices
-   - Acknowledgment of disagreements and how you resolved them
+   - Split into Day 1 and Day 2
+   - Keep it conversational but informative
 
 FORMAT:
 ## ✅ What most models agree on
-[bullets]
+• [point 1]
+• [point 2]
+• [point 3]
 
 ## ⚠️ Where models disagree
-[bullets with explanations]
+• [disagreement 1] - [resolution]
+• [disagreement 2] - [resolution]
 
-## 👉 Recommended 2-day itinerary
-Day 1:
-[Detailed itinerary with timing]
+## 👉 Final recommendation
 
-Day 2:
-[Detailed itinerary with timing]
+Day 1: [3-4 sentences describing the plan]
+Day 2: [3-4 sentences describing the plan]
 
-Remember: This is the final output the user will see. Make it actionable and clear.`;
+Remember: This is the final synthesis. Be comprehensive but stay conversational and concise.`;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -255,14 +262,16 @@ export function getRound1Prompt(
   userQuestion: string,
   pace: string,
   budget: string,
-  focus: string
+  focus: string,
+  destination: string
 ): string {
   return ROUND_1_PROMPT(
     PARTICIPANTS[role].role,
     userQuestion,
     pace,
     budget,
-    focus
+    focus,
+    destination
   );
 }
 

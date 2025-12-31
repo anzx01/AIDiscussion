@@ -25,55 +25,54 @@ interface DiscussRequest {
   focus: "experience-first" | "practical";
 }
 
+/**
+ * Extract destination from user question
+ * Supports patterns like:
+ * - "Plan a 2-day trip to Paris"
+ * - "Plan a weekend in Tokyo"
+ * - "I want to visit London for 2 days"
+ */
+function extractDestination(question: string): string {
+  const lowerQuestion = question.toLowerCase();
+
+  // Pattern 1: "to [destination]"
+  const toMatch = lowerQuestion.match(/\bto\s+([a-z\s]+?)(?:\s+for|\s+in|\s+during|\.|$)/i);
+  if (toMatch && toMatch[1]) {
+    return toMatch[1].trim();
+  }
+
+  // Pattern 2: "in [destination]"
+  const inMatch = lowerQuestion.match(/\bin\s+([a-z\s]+?)(?:\s+for|\s+during|\.|$)/i);
+  if (inMatch && inMatch[1]) {
+    return inMatch[1].trim();
+  }
+
+  // Pattern 3: "visit [destination]"
+  const visitMatch = lowerQuestion.match(/\bvisit\s+([a-z\s]+?)(?:\s+for|\s+during|\.|$)/i);
+  if (visitMatch && visitMatch[1]) {
+    return visitMatch[1].trim();
+  }
+
+  // Default: return the question as-is (AI will figure it out)
+  return question.trim();
+}
+
 // Mock data for development
 const MOCK_DISCUSSION = {
   round1: {
-    planner: `Day 1:
-- Morning: Start at Times Square (9:00 AM), walk to Rockefeller Center (10:00 AM), visit Top of the Rock (10:30 AM)
-- Afternoon: Lunch at nearby deli (12:30 PM), MoMA visit (2:00 PM), Central Park walk (4:00 PM)
-- Evening: Dinner in Hell's Kitchen (7:00 PM), Broadway show (8:00 PM)
+    planner: `Based on the balanced pace and flexible budget, I'd recommend starting Day 1 with Times Square and Rockefeller Center, then MoMA and Central Park in the afternoon. For Day 2, focus on Statue of Liberty in the morning and Financial District in the afternoon. This keeps travel time minimal and hits the iconic spots.`,
 
-Day 2:
-- Morning: Statue of Liberty & Ellis Island (9:00 AM - 1:00 PM)
-- Afternoon: Wall Street walk (1:30 PM), 9/11 Memorial (2:30 PM), Oculus (3:30 PM)
-- Evening: Brooklyn Bridge sunset (5:00 PM), dinner in DUMBO (7:00 PM)
+    realityChecker: `I'd suggest starting Day 1 at Central Park (less crowded in the morning), then the Met Museum and Fifth Avenue. Day 2 should begin with an early Statue of Liberty ferry to beat crowds, then 9/11 Memorial. Need to book Broadway shows weeks in advance and expect 30+ minutes for security.`,
 
-Notes: Focus on iconic first-time NYC experiences with efficient geographic clustering.`,
-
-    realityChecker: `Day 1:
-- Morning: Central Park start (9:00 AM) - less crowded, Metropolitan Museum (10:00 AM)
-- Afternoon: Lunch on Upper East Side (1:00 PM), Guggenheim (2:30 PM), walk down Fifth Avenue (4:00 PM)
-- Evening: Empire State Building sunset (6:00 PM), Koreatown dinner (8:00 PM)
-
-Day 2:
-- Morning: Early ferry to Statue of Liberty (8:00 AM to beat crowds)
-- Afternoon: Financial District walk (11:00 AM), 9/11 Memorial (12:00 PM - can be very crowded), Chelsea Market lunch (2:00 PM)
-- Evening: High Line park walk (4:00 PM), Hudson Yards (5:30 PM), West Village dinner (7:00 PM)
-
-Notes: Avoid Times Square during peak hours. Book Broadway tickets in advance. Statue of Liberty security takes 30+ minutes.`,
-
-    budgetAdvisor: `Day 1:
-- Morning: Staten Island Ferry for free Statue of Liberty views (9:00 AM), walk to Financial District (10:30 AM)
-- Afternoon: Free 9/11 Memorial (11:00 AM), inexpensive lunch in Chinatown (1:00 PM), Brooklyn Bridge walk (2:30 PM)
-- Evening: Sunset at Brooklyn Bridge Park (5:00 PM), affordable dinner in Sunset Park (7:00 PM)
-
-Day 2:
-- Morning: Central Park (free) (9:00 AM), walk through Midtown (11:00 AM)
-- Afternoon: Free sample of MoMA on Friday evenings (regular time: 2:00 PM), Times Square (free experience) (4:00 PM)
-- Evening: Street food dinner (6:00 PM), free walk across Manhattan Bridge (8:00 PM)
-
-Notes: Use free alternatives like Staten Island Ferry instead of paid Liberty tour. Eat at ethnic neighborhoods for authentic, cheap food. Many museums have pay-what-you-wish hours.`,
+    budgetAdvisor: `From a budget-conscious perspective, I recommend the Staten Island Ferry for free Statue of Liberty views instead of paying for the tour. Day 1: Free 9/11 Memorial and Chinatown lunch. Day 2: Central Park (free) and Brooklyn Bridge walk. Many museums have pay-what-you-wish hours.`,
   },
 
   round2: {
-    planner: `Reality Checker's Proposal: Good crowd timing advice, but Top of the Rock and Empire State in one day is redundant. Central Park clustering is better.
-Budget Advisor's Proposal: Too much free stuff misses the point of a "special" trip. Staten Island Ferry is practical but doesn't feel like a destination experience.`,
+    planner: `Reality Checker, I like your crowd timing strategy, but Top of the Rock and Empire State in one day feels redundant. Budget Advisor, I'm concerned that skipping paid attractions misses the point of a special trip - the Staten Island Ferry is practical but not a destination experience.`,
 
-    realityChecker: `Planner's Proposal: Times Square at 9 AM still has crowds. Broadway show without mentioning booking timeline is unrealistic - shows sell out weeks ahead.
-Budget Advisor's Proposal: Staten Island Ferry is smart for views, but Chinatown to Brooklyn Bridge is a lot of walking. MoMA "free" is only 4 hours Friday - need to mention that limitation.`,
+    realityChecker: `Planner, Times Square at 9 AM still has significant crowds. Also, mentioning a Broadway show without booking timeline is unrealistic - they sell out weeks ahead. Budget Advisor, the Staten Island Ferry is smart, but Chinatown to Brooklyn Bridge is a lot of walking, and MoMA's free hours are limited.`,
 
-    budgetAdvisor: `Planner's Proposal: Top of the Rock ($40+) and MoMA ($30) plus Broadway ($100+) is $200+ just for these three. No mention of these costs.
-Reality Checker's Proposal: Met Museum "pay what you wish" is only for NY residents. Need to flag this - full price is $30 for adults. Good timing advice though.`,
+    budgetAdvisor: `Planner, your proposal adds up quickly: Top of the Rock ($40+), MoMA ($30), plus Broadway ($100+) - that's $200+ without mentioning these costs. Reality Checker, good timing advice, but the Met Museum's "pay what you wish" is only for NY residents, not tourists.`,
   },
 
   round3: {
@@ -90,7 +89,23 @@ Reality Checker's Proposal: Met Museum "pay what you wish" is only for NY reside
       "Statue of Liberty: Planner suggests paid tour, Reality Checker emphasizes early timing, Budget Advisor prefers free Staten Island Ferry",
       "Museum costs: Planner and Reality Checker suggest paid museums, Budget Advisor pushes for free alternatives",
     ],
-    recommendation: "Mock recommendation - in production this would be the synthesized output from Round 3",
+    recommendation: `## ✅ What most models agree on
+• Geographic clustering to minimize travel time
+• Central Park and Financial District as must-see areas
+• Timing is crucial for crowds at Statue of Liberty and 9/11 Memorial
+• Mix of outdoor sightseeing and cultural attractions
+
+## ⚠️ Where models disagree
+• Budget vs. experience - Resolved by offering free alternatives where possible but recommending key paid experiences
+• Statue of Liberty approach - Resolved by suggesting early ferry to balance cost and experience
+
+## 👉 Final recommendation
+
+Day 1: Start with Central Park (9 AM) to avoid crowds, then Metropolitan Museum. Lunch on Upper East Side. Afternoon: Fifth Avenue walk and Top of the Rock for views. Evening: Koreatown dinner. Budget ~$120.
+
+Day 2: Early Statue of Liberty ferry (8 AM) to beat crowds, then 9/11 Memorial. Lunch in Chelsea Market. Afternoon: Brooklyn Bridge walk and DUMBO. Budget ~$80.
+
+Total budget: ~$200, balancing iconic experiences with practical logistics.`,
   },
 };
 
@@ -101,9 +116,10 @@ async function callLLM(
   model: string,
   systemPrompt: string,
   userPrompt: string,
-  provider: "zhipu" | "deepseek"
+  provider: "zhipu" | "deepseek",
+  maxTokens: number = 400
 ): Promise<string> {
-  console.log(`callLLM: provider=${provider}, model=${model}`);
+  console.log(`callLLM: provider=${provider}, model=${model}, maxTokens=${maxTokens}`);
 
   if (apiConfig.useMockApi) {
     // Simulate API delay
@@ -143,7 +159,7 @@ async function callLLM(
           { role: "user", content: userPrompt },
         ],
         temperature: 0.7,
-        max_tokens: 2000,
+        max_tokens: maxTokens,
       }),
     });
 
@@ -169,7 +185,8 @@ async function callLLM(
  */
 async function runDiscussion(
   params: DiscussRequest,
-  sessionId: string
+  sessionId: string,
+  destination: string
 ): Promise<{
   round1: Record<string, string>;
   round2: Record<string, string>;
@@ -197,13 +214,15 @@ async function runDiscussion(
       params.question,
       params.pace,
       params.budget,
-      params.focus
+      params.focus,
+      destination
     );
     round1[key] = await callLLM(
       participant.model,
       systemPrompt,
       userPrompt,
-      participant.provider
+      participant.provider,
+      300  // Short, conversational responses
     );
     console.log(`Round 1: ${key} completed`);
 
@@ -237,7 +256,8 @@ async function runDiscussion(
       participant.model,
       systemPrompt,
       userPrompt,
-      participant.provider
+      participant.provider,
+      400  // Short critiques
     );
     console.log(`Round 2: ${key} completed`);
 
@@ -269,7 +289,8 @@ async function runDiscussion(
     PARTICIPANTS.planner.model,
     systemPrompt,
     userPrompt,
-    PARTICIPANTS.planner.provider
+    PARTICIPANTS.planner.provider,
+    800  // Longer synthesis for final recommendation
   );
   console.log("Round 3 completed");
 
@@ -305,23 +326,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Question is required" }, { status: 400 });
     }
 
-    // Validate that this is about 2-day NYC trip
-    const lowerQuestion = body.question.toLowerCase();
-    const hasNewYork =
-      lowerQuestion.includes("new york") ||
-      lowerQuestion.includes("newyork") ||
-      lowerQuestion.includes("nyc") ||
-      lowerQuestion.includes("new york city");
-
-    if (!hasNewYork) {
-      return NextResponse.json(
-        {
-          error:
-            "This tool only supports 2-day New York trip planning. Please mention New York, NYC, or NewYork in your question.",
-        },
-        { status: 400 }
-      );
-    }
+    // Extract destination from question
+    const destination = extractDestination(body.question);
+    console.log("Extracted destination:", destination);
 
     // Generate session ID
     const sessionId = crypto.randomUUID();
@@ -345,7 +352,7 @@ export async function POST(req: NextRequest) {
 
     // Return immediately with sessionId, run discussion in background
     // Run discussion asynchronously (don't await)
-    runDiscussion(body, sessionId)
+    runDiscussion(body, sessionId, destination)
       .then(async (discussionResult) => {
         console.log("Discussion completed, updating database...");
         // Update session with results

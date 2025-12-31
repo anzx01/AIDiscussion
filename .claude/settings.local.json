@@ -9,7 +9,8 @@
       "Bash(npm run db:migrate:*)",
       "Bash(npm run db:generate:*)",
       "Bash(node:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(findstr DATABASE_URL)"
     ],
     "deny": [],
     "ask": []

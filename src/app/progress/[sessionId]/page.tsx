@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ChatContainer } from "@/components/chat/ChatContainer";
+import { Sidebar } from "@/components/chat/Sidebar";
 
 interface SessionData {
   sessionId: string;
@@ -128,65 +129,71 @@ export default function ProgressPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mx-auto max-w-4xl">
-          {/* Header */}
-          <div className="text-center mb-6">
-            <h1 className="mb-4 text-4xl font-bold text-slate-900 dark:text-slate-50">
-              🤖 Multi-Agent Discussion
-            </h1>
-            <div className="mb-4">
-              <div className="text-6xl font-bold text-blue-600">{formatTime(elapsedTime)}</div>
-              <p className="text-slate-600 dark:text-slate-400">
-                {session.status === "completed" ? "Discussion completed!" : "AI agents are discussing..."}
+    <div className="flex min-h-screen">
+      {/* Sidebar */}
+      <Sidebar activeSessionId={String(params.sessionId)} />
+
+      {/* Main Content */}
+      <div className="flex-1 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+        <div className="container mx-auto px-4 py-8 md:pl-80">
+          <div className="mx-auto max-w-4xl">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <h1 className="mb-4 text-4xl font-bold text-slate-900 dark:text-slate-50">
+                🤖 Multi-Agent Discussion
+              </h1>
+              <div className="mb-4">
+                <div className="text-6xl font-bold text-blue-600">{formatTime(elapsedTime)}</div>
+                <p className="text-slate-600 dark:text-slate-400">
+                  {session.status === "completed" ? "Discussion completed!" : "AI agents are discussing..."}
+                </p>
+              </div>
+
+              {/* Overall Progress Bar */}
+              <div className="w-full bg-slate-200 rounded-full h-4 mb-4 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-4 rounded-full transition-all duration-500 ease-out"
+                  style={{ width: `${getProgressPercentage()}%` }}
+                />
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {getMessageCount()} messages • {Math.round(getProgressPercentage())}% Complete
               </p>
             </div>
 
-            {/* Overall Progress Bar */}
-            <div className="w-full bg-slate-200 rounded-full h-4 mb-4 overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-blue-500 to-purple-500 h-4 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${getProgressPercentage()}%` }}
-              />
+            {/* Question */}
+            <div className="mb-6 bg-white rounded-lg p-4 shadow-lg dark:bg-slate-900 border-2 border-blue-200">
+              <h2 className="text-lg font-semibold mb-2 text-blue-600">📝 Your Question:</h2>
+              <p className="text-slate-700 dark:text-slate-300">{session.question}</p>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              {getMessageCount()} messages • {Math.round(getProgressPercentage())}% Complete
-            </p>
-          </div>
 
-          {/* Question */}
-          <div className="mb-6 bg-white rounded-lg p-4 shadow-lg dark:bg-slate-900 border-2 border-blue-200">
-            <h2 className="text-lg font-semibold mb-2 text-blue-600">📝 Your Question:</h2>
-            <p className="text-slate-700 dark:text-slate-300">{session.question}</p>
-          </div>
-
-          {/* Agent Status Cards */}
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            {agents.map((agent) => (
-              <div
-                key={agent}
-                className={`bg-white rounded-lg p-3 shadow dark:bg-slate-900 border-2 transition-all duration-300 ${
-                  agentStates[agent] === "done" ? "border-green-500" : "border-slate-200"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-bold text-sm">{agentNames[agent]}</h3>
-                  {agentStates[agent] === "thinking" && <span className="text-lg animate-pulse">🤔</span>}
-                  {agentStates[agent] === "done" && <span className="text-lg">✅</span>}
-                  {agentStates[agent] === "waiting" && <span className="text-lg opacity-30">⏳</span>}
-                </div>
-                {agentStates[agent] === "thinking" && (
-                  <div className="w-full bg-slate-200 rounded-full h-1">
-                    <div className={`${agentColors[agent]} h-1 rounded-full animate-pulse`} style={{ width: "60%" }} />
+            {/* Agent Status Cards */}
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              {agents.map((agent) => (
+                <div
+                  key={agent}
+                  className={`bg-white rounded-lg p-3 shadow dark:bg-slate-900 border-2 transition-all duration-300 ${
+                    agentStates[agent] === "done" ? "border-green-500" : "border-slate-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-bold text-sm">{agentNames[agent]}</h3>
+                    {agentStates[agent] === "thinking" && <span className="text-lg animate-pulse">🤔</span>}
+                    {agentStates[agent] === "done" && <span className="text-lg">✅</span>}
+                    {agentStates[agent] === "waiting" && <span className="text-lg opacity-30">⏳</span>}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
+                  {agentStates[agent] === "thinking" && (
+                    <div className="w-full bg-slate-200 rounded-full h-1">
+                      <div className={`${agentColors[agent]} h-1 rounded-full animate-pulse`} style={{ width: "60%" }} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
 
-          {/* Chat Container */}
-          <ChatContainer sessionId={String(params.sessionId)} status={session.status} onComplete={() => router.push(`/results/${params.sessionId}`)} />
+            {/* Chat Container */}
+            <ChatContainer sessionId={String(params.sessionId)} status={session.status} onComplete={() => router.push(`/results/${params.sessionId}`)} />
+          </div>
         </div>
       </div>
     </div>
