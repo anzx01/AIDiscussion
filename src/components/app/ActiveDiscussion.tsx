@@ -5,14 +5,15 @@ import { ChatContainer } from "@/components/chat/ChatContainer";
 import { ControlButton } from "./ControlButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Pause, Play } from "lucide-react";
+import { Send, Pause, Play, Check } from "lucide-react";
+import { ImagePanel } from "@/components/chat/ImagePanel";
 
 const agents = ["planner", "realityChecker", "budgetAdvisor"];
 
 const agentNames: Record<string, string> = {
-  planner: "Planner",
-  realityChecker: "Reality Checker",
-  budgetAdvisor: "Budget Advisor",
+  planner: "GLM-4-Flash",
+  realityChecker: "GLM-4-Plus",
+  budgetAdvisor: "DeepSeek",
 };
 
 const agentColors: Record<string, string> = {
@@ -35,6 +36,7 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
     realityChecker: "waiting",
     budgetAdvisor: "waiting",
   });
+  const [selectedAgents, setSelectedAgents] = useState<string[]>(["planner", "realityChecker", "budgetAdvisor"]);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +60,14 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
       try {
         const response = await fetch(`/api/discuss/${sessionId}`);
         const data = await response.json();
-        setSession(data);
+
+        // Only update if data actually changed
+        setSession((prevSession: any) => {
+          if (JSON.stringify(prevSession) === JSON.stringify(data)) {
+            return prevSession; // No change, don't update
+          }
+          return data;
+        });
 
         // Check pause state
         if (data.isPaused && !isPaused) {
@@ -93,7 +102,13 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
             }
           }
 
-          setAgentStates(latestAgentStates);
+          // Only update agent states if they changed
+          setAgentStates((prevStates: Record<string, AgentStatus>) => {
+            if (JSON.stringify(prevStates) === JSON.stringify(latestAgentStates)) {
+              return prevStates;
+            }
+            return latestAgentStates;
+          });
         }
 
         // Check if completed
@@ -107,7 +122,7 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
     }, 500);
 
     return () => clearInterval(interval);
-  }, [sessionId, isPaused, onCompleted]);
+  }, [sessionId, isPaused, isCompleted]);
 
   const handlePause = async () => {
     try {
@@ -142,14 +157,17 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
   };
 
   const handleSendMessage = async () => {
-    if (!userMessage.trim() || isSending) return;
+    if (!userMessage.trim() || isSending || selectedAgents.length === 0) return;
 
     setIsSending(true);
     try {
       const response = await fetch(`/api/discuss/${sessionId}/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage.trim() }),
+        body: JSON.stringify({
+          message: userMessage.trim(),
+          selectedAgents: selectedAgents
+        }),
       });
 
       if (response.ok) {
@@ -198,133 +216,175 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white dark:bg-slate-900">
-      {/* Top Bar - Compact */}
-      <div className="flex-shrink-0 border-b border-slate-200 dark:border-slate-700 px-6 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              Multi-Agent Discussion
-            </h1>
-            <span className="text-sm text-slate-500 dark:text-slate-400">
-              {formatTime(elapsedTime)}
-            </span>
-            {isCompleted && (
-              <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full">
-                ✓ Completed
+    <div className="flex h-screen bg-white dark:bg-slate-900">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Bar - Compact */}
+        <div className="flex-shrink-0 border-b border-slate-200 dark:border-slate-700 px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Multi-Agent Discussion
+              </h1>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {formatTime(elapsedTime)}
               </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Progress indicator */}
-            <div className="text-sm text-slate-600 dark:text-slate-400">
-              {getMessageCount()} messages
+              {isCompleted && (
+                <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full">
+                  ✓ Completed
+                </span>
+              )}
             </div>
-            {/* Pause/Resume Button - Hide when completed */}
-            {!isCompleted && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={isPaused ? handleResume : handlePause}
-                className="flex items-center gap-1"
-              >
-                {isPaused ? (
-                  <>
-                    <Play className="h-4 w-4" />
-                    Resume
-                  </>
-                ) : (
-                  <>
-                    <Pause className="h-4 w-4" />
-                    Pause
-                  </>
-                )}
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Progress indicator */}
+              <div className="text-sm text-slate-600 dark:text-slate-400">
+                {getMessageCount()} messages
+              </div>
+              {/* Pause/Resume Button - Hide when completed */}
+              {!isCompleted && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={isPaused ? handleResume : handlePause}
+                  className="flex items-center gap-1"
+                >
+                  {isPaused ? (
+                    <>
+                      <Play className="h-4 w-4" />
+                      Resume
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="h-4 w-4" />
+                      Pause
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Question Bar */}
-      <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 px-6 py-2 border-b border-blue-200 dark:border-blue-800">
-        <p className="text-sm text-blue-900 dark:text-blue-100 truncate">
-          <span className="font-semibold">Question:</span> {session?.question}
-        </p>
-      </div>
-
-      {/* Agent Status Bar - Compact */}
-      <div className="flex-shrink-0 border-b border-slate-200 dark:border-slate-700 px-6 py-2">
-        <div className="flex items-center gap-6">
-          {agents.map((agent) => (
-            <div key={agent} className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                {agentNames[agent]}
-              </span>
-              {agentStates[agent] === "thinking" && (
-                <span className="text-sm animate-pulse">🤔</span>
-              )}
-              {agentStates[agent] === "done" && <span className="text-sm">✅</span>}
-              {agentStates[agent] === "waiting" && <span className="text-sm opacity-30">⏳</span>}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Chat Container - Takes remaining space */}
-      <div className="flex-1 overflow-y-auto">
-        <ChatContainer sessionId={sessionId} status={session?.status} onComplete={() => {}} />
-      </div>
-
-      {/* Bottom Input Area - Fixed at bottom */}
-      <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-700 p-4">
-        <div className="max-w-4xl mx-auto">
-          {/* Completed Notice */}
-          {isCompleted && (
-            <div className="mb-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2 text-center">
-              <p className="text-sm text-green-800 dark:text-green-200">
-                ✓ Discussion completed! You can continue asking questions or start a new discussion.
-              </p>
-            </div>
-          )}
-
-          {/* Paused Notice */}
-          {isPaused && !isCompleted && (
-            <div className="mb-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg px-3 py-2 text-center">
-              <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                ⏸ Discussion paused - Click Resume to continue
-              </p>
-            </div>
-          )}
-
-          {/* Input Form */}
-          <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="flex gap-2">
-            <Input
-              type="text"
-              placeholder={isCompleted ? "Ask a follow-up question..." : "Type a message to join the discussion..."}
-              value={userMessage}
-              onChange={(e) => setUserMessage(e.target.value)}
-              disabled={isSending}
-              className="flex-1 h-12 text-base"
-            />
-            <Button
-              type="submit"
-              disabled={!userMessage.trim() || isSending}
-              size="icon"
-              className="h-12 w-12 rounded-full"
-            >
-              {isSending ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              ) : (
-                <Send className="h-5 w-5" />
-              )}
-            </Button>
-          </form>
-
-          {/* Info text */}
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
-            {isCompleted ? "Continue the conversation" : "Messages will be sent to all AI agents"}
+        {/* Question Bar */}
+        <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-900/20 px-6 py-2 border-b border-blue-200 dark:border-blue-800">
+          <p className="text-sm text-blue-900 dark:text-blue-100 truncate">
+            <span className="font-semibold">Question:</span> {session?.question}
           </p>
         </div>
+
+        {/* Agent Selection Bar */}
+        <div className="flex-shrink-0 border-b border-slate-200 dark:border-slate-700 px-6 py-2">
+          <div className="flex items-center gap-4">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Select AI models:</span>
+            {agents.map((agent) => {
+              const isSelected = selectedAgents.includes(agent);
+              const isDone = agentStates[agent] === "done";
+              const isThinking = agentStates[agent] === "thinking";
+
+              return (
+                <button
+                  key={agent}
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedAgents(selectedAgents.filter(a => a !== agent));
+                    } else {
+                      setSelectedAgents([...selectedAgents, agent]);
+                    }
+                  }}
+                  className={`
+                    flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all
+                    ${isSelected
+                      ? `${agentColors[agent]} text-white shadow-md`
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }
+                  `}
+                >
+                  <span className="w-4 h-4 flex items-center justify-center">
+                    {isSelected ? (
+                      <Check className="h-3 w-3" />
+                    ) : isThinking ? (
+                      <span className="animate-pulse">🤔</span>
+                    ) : isDone ? (
+                      <span>✓</span>
+                    ) : (
+                      <span className="opacity-30">○</span>
+                    )}
+                  </span>
+                  {agentNames[agent]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Chat Container - Takes remaining space */}
+        <div className="flex-1 overflow-y-auto">
+          <ChatContainer sessionId={sessionId} status={session?.status} onComplete={() => {}} />
+        </div>
+
+        {/* Bottom Input Area - Fixed at bottom */}
+        <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-700 p-4">
+          <div className="max-w-4xl mx-auto">
+            {/* Completed Notice */}
+            {isCompleted && (
+              <div className="mb-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2 text-center">
+                <p className="text-sm text-green-800 dark:text-green-200">
+                  ✓ Discussion completed! You can continue asking questions or start a new discussion.
+                </p>
+              </div>
+            )}
+
+            {/* Paused Notice */}
+            {isPaused && !isCompleted && (
+              <div className="mb-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg px-3 py-2 text-center">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  ⏸ Discussion paused - Click Resume to continue
+                </p>
+              </div>
+            )}
+
+            {/* Input Form */}
+            <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="flex gap-2">
+              <Input
+                type="text"
+                placeholder={selectedAgents.length === 0
+                  ? "Select at least one AI model above..."
+                  : isCompleted
+                  ? "Ask a follow-up question..."
+                  : "Type a message to join the discussion..."}
+                value={userMessage}
+                onChange={(e) => setUserMessage(e.target.value)}
+                disabled={isSending || selectedAgents.length === 0}
+                className="flex-1 h-12 text-base"
+              />
+              <Button
+                type="submit"
+                disabled={!userMessage.trim() || isSending || selectedAgents.length === 0}
+                size="icon"
+                className="h-12 w-12 rounded-full"
+              >
+                {isSending ? (
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+              </Button>
+            </form>
+
+            {/* Info text */}
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
+              {selectedAgents.length === 0
+                ? "Please select at least one AI model above to send a message"
+                : `Your message will be sent to: ${selectedAgents.map(a => agentNames[a]).join(", ")}`
+              }
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Image Panel - Fixed width on the right */}
+      <div className="w-[400px] flex-shrink-0">
+        <ImagePanel />
       </div>
     </div>
   );

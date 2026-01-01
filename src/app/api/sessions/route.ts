@@ -18,10 +18,12 @@ export async function GET(req: NextRequest) {
       .select({
         id: plannerSession.id,
         question: plannerSession.question,
+        title: plannerSession.title,
         status: plannerSession.status,
         pace: plannerSession.pace,
         budget: plannerSession.budget,
         focus: plannerSession.focus,
+        isPinned: plannerSession.isPinned,
         createdAt: plannerSession.createdAt,
         updatedAt: plannerSession.updatedAt,
         messageCount: count(discussionMessage.id),
@@ -29,19 +31,20 @@ export async function GET(req: NextRequest) {
       .from(plannerSession)
       .leftJoin(discussionMessage, eq(plannerSession.id, discussionMessage.sessionId))
       .groupBy(plannerSession.id)
-      .orderBy(desc(plannerSession.createdAt));
+      .orderBy(desc(plannerSession.isPinned), desc(plannerSession.createdAt));
 
     console.log(`Found ${sessions.length} sessions`);
 
-    // Transform sessions to add titles and formatted times
+    // Transform sessions to add formatted times
     const transformedSessions = sessions.map((session) => ({
       id: session.id,
       question: session.question,
-      title: extractTitle(session.question),
+      title: session.title || extractTitle(session.question), // Fallback to extractTitle if title is null
       status: session.status,
       pace: session.pace,
       budget: session.budget,
       focus: session.focus,
+      isPinned: session.isPinned,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
       relativeTime: formatRelativeTime(session.createdAt),

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { DiscussionMessageType } from "@/db/schema/planner";
+import { extractEntitiesWithCache } from "@/lib/entity-extraction";
 
 interface ChatContainerProps {
   sessionId: string;
@@ -14,8 +15,11 @@ export function ChatContainer({ sessionId, status, onComplete }: ChatContainerPr
   const [messages, setMessages] = useState<(DiscussionMessageType & { replyTo?: any })[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionDeleted, setSessionDeleted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMessageCount = useRef(0);
+  const processedMessageIds = useRef<Set<string>>(new Set());
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -33,6 +37,20 @@ export function ChatContainer({ sessionId, status, onComplete }: ChatContainerPr
     const fetchMessages = async () => {
       try {
         const response = await fetch(`/api/discuss/${sessionId}`);
+
+        // Handle deleted session (404)
+        if (response.status === 404) {
+          setSessionDeleted(true);
+          setError(null);
+          setLoading(false);
+          // Stop polling
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          return;
+        }
+
         if (!response.ok) throw new Error("Failed to fetch messages");
 
         const data = await response.json();
@@ -49,6 +67,47 @@ export function ChatContainer({ sessionId, status, onComplete }: ChatContainerPr
 
         // Only update if there are new messages
         if (messagesWithReplies.length > lastMessageCount.current) {
+          // Process new AI messages for entity extraction
+          const newMessages = messagesWithReplies.slice(lastMessageCount.current);
+
+          // Extract entities from new AI messages and trigger image display
+          newMessages.forEach(async (msg: DiscussionMessageType & { replyTo?: any }) => {
+            // Only process AI assistant messages that haven't been processed yet
+            if (msg.role === "assistant" && !processedMessageIds.current.has(msg.id)) {
+              processedMessageIds.current.add(msg.id);
+
+              // Extract entities (attractions, food, locations, activities)
+              try {
+                console.log("[ChatContainer] Extracting entities from message:", msg.content.substring(0, 100));
+                // Pass the session question for context
+                const entities = await extractEntitiesWithCache(
+                  msg.content,
+                  "", // context could be previous messages if needed
+                  data.question || "" // Pass the original question
+                );
+                console.log("[ChatContainer] Extracted entities:", entities);
+
+                // Dispatch displayImage events for each entity
+                entities.forEach((entity) => {
+                  if (entity.confidence > 0.6) {
+                    // Only show high-confidence entities
+                    console.log("[ChatContainer] Dispatching displayImage event:", entity);
+                    window.dispatchEvent(
+                      new CustomEvent('displayImage', {
+                        detail: {
+                          keyword: entity.keyword,
+                          type: entity.type
+                        }
+                      })
+                    );
+                  }
+                });
+              } catch (error) {
+                console.error("[ChatContainer] Error extracting entities:", error);
+              }
+            }
+          });
+
           setMessages(messagesWithReplies);
           lastMessageCount.current = messagesWithReplies.length;
         }
@@ -72,9 +131,31 @@ export function ChatContainer({ sessionId, status, onComplete }: ChatContainerPr
     fetchMessages();
 
     // Poll every 500ms for new messages
-    const interval = setInterval(fetchMessages, 500);
+    intervalRef.current = setInterval(fetchMessages, 500);
 
-    return () => clearInterval(interval);
+    // Listen for session deletion event
+    const handleSessionDeleted = (event: CustomEvent) => {
+      const deletedSessionId = event.detail?.sessionId;
+      if (deletedSessionId === sessionId) {
+        setSessionDeleted(true);
+        setError(null);
+        setLoading(false);
+        // Stop polling immediately
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      }
+    };
+
+    window.addEventListener('sessionDeleted', handleSessionDeleted as EventListener);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      window.removeEventListener('sessionDeleted', handleSessionDeleted as EventListener);
+    };
   }, [sessionId, onComplete]);
 
   if (loading) {
@@ -84,6 +165,16 @@ export function ChatContainer({ sessionId, status, onComplete }: ChatContainerPr
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
           <p className="text-sm text-slate-600 dark:text-slate-400">Loading discussion...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (sessionDeleted) {
+    return (
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-8 text-center">
+        <div className="text-4xl mb-4">🗑️</div>
+        <p className="text-blue-900 dark:text-blue-100 font-medium mb-2">This discussion has been deleted</p>
+        <p className="text-sm text-blue-700 dark:text-blue-300">Select another discussion or start a new one</p>
       </div>
     );
   }

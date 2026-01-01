@@ -10,6 +10,7 @@ import {
   PARTICIPANTS,
 } from "@/lib/prompts";
 import { eq } from "drizzle-orm";
+import { extractTitle } from "@/lib/title-extractor";
 
 /**
  * Multi-Model Discussion API
@@ -378,6 +379,7 @@ export async function POST(req: NextRequest) {
       await db.insert(plannerSession).values({
         id: sessionId,
         question: body.question.trim(),
+        title: extractTitle(body.question.trim()),
         pace: body.pace,
         budget: body.budget,
         focus: body.focus,

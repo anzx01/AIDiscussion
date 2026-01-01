@@ -1,8 +1,11 @@
-import { pgTable, text, timestamp, json, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, json, integer, boolean, pgEnum } from "drizzle-orm/pg-core";
+
+export const messageRoleEnum = pgEnum("message_role", ["user", "assistant"]);
 
 export const plannerSession = pgTable("planner_session", {
   id: text("id").primaryKey(),
   question: text("question").notNull(),
+  title: text("title").notNull(), // Custom title for the session
   pace: text("pace").notNull(), // fast | balanced | relaxed
   budget: text("budget").notNull(), // budget-conscious | flexible
   focus: text("focus").notNull(), // experience-first | practical
@@ -19,6 +22,7 @@ export const plannerSession = pgTable("planner_session", {
 
   status: text("status").notNull().default("pending"), // pending | processing | completed | failed
   isPaused: boolean("is_paused").notNull().default(false), // For pause/resume functionality
+  isPinned: boolean("is_pinned").notNull().default(false), // For pinning sessions to top
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -35,8 +39,9 @@ export const emailCapture = pgTable("email_capture", {
 export const discussionMessage = pgTable("discussion_messages", {
   id: text("id").primaryKey(),
   sessionId: text("session_id").notNull().references(() => plannerSession.id),
-  agentId: text("agent_id").notNull(), // 'planner', 'realityChecker', 'budgetAdvisor'
-  round: integer("round").notNull(), // 1, 2, 3
+  role: messageRoleEnum("role").notNull().default("assistant"), // 'user' or 'assistant'
+  agentId: text("agent_id"), // 'planner', 'realityChecker', 'budgetAdvisor' (null for user messages)
+  round: integer("round"), // 1, 2, 3 (null for user messages)
   content: text("content").notNull(),
   replyToId: text("reply_to_id"), // For quote/reply - references discussion_messages.id
   createdAt: timestamp("created_at").defaultNow().notNull(),

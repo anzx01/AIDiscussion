@@ -25,6 +25,23 @@ export function SessionList({ activeSessionId, onSessionSelect }: SessionListPro
 
   useEffect(() => {
     fetchSessions();
+
+    // Listen for session changes
+    const handleSessionDeleted = () => {
+      fetchSessions();
+    };
+
+    const handleSessionUpdated = () => {
+      fetchSessions();
+    };
+
+    window.addEventListener('sessionDeleted', handleSessionDeleted);
+    window.addEventListener('sessionUpdated', handleSessionUpdated);
+
+    return () => {
+      window.removeEventListener('sessionDeleted', handleSessionDeleted);
+      window.removeEventListener('sessionUpdated', handleSessionUpdated);
+    };
   }, []);
 
   const fetchSessions = async () => {
