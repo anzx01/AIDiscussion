@@ -99,14 +99,14 @@ export function HistoryViewer({ sessionId }: HistoryViewerProps) {
 
   if (loading) {
     return (
-      <div className="flex h-screen bg-white dark:bg-slate-900">
+      <div className="flex h-full bg-white dark:bg-slate-900 overflow-hidden">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-blue-500 border-t-transparent"></div>
             <p className="text-slate-600 dark:text-slate-400">Loading discussion...</p>
           </div>
         </div>
-        <div className="w-[400px] flex-shrink-0">
+        <div className="w-[400px] flex-shrink-0 overflow-hidden">
           <ImagePanel />
         </div>
       </div>
@@ -115,11 +115,11 @@ export function HistoryViewer({ sessionId }: HistoryViewerProps) {
 
   if (!session) {
     return (
-      <div className="flex h-screen bg-white dark:bg-slate-900">
+      <div className="flex h-full bg-white dark:bg-slate-900 overflow-hidden">
         <div className="flex-1 flex items-center justify-center">
           <p className="text-red-500">Failed to load discussion</p>
         </div>
-        <div className="w-[400px] flex-shrink-0">
+        <div className="w-[400px] flex-shrink-0 overflow-hidden">
           <ImagePanel />
         </div>
       </div>
@@ -127,9 +127,9 @@ export function HistoryViewer({ sessionId }: HistoryViewerProps) {
   }
 
   return (
-    <div className="flex h-screen bg-white dark:bg-slate-900">
+    <div className="flex h-full bg-white dark:bg-slate-900 overflow-hidden">
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Bar - Compact */}
         <div className="flex-shrink-0 border-b border-slate-200 dark:border-slate-700 px-6 py-3">
           <div className="flex items-center justify-between">
@@ -193,7 +193,7 @@ export function HistoryViewer({ sessionId }: HistoryViewerProps) {
         </div>
 
         {/* Chat Container - Takes remaining space */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
           <ChatContainer sessionId={sessionId} status={session?.status} onComplete={() => {}} />
         </div>
 
@@ -246,7 +246,7 @@ export function HistoryViewer({ sessionId }: HistoryViewerProps) {
       </div>
 
       {/* Image Panel - Fixed width on the right */}
-      <div className="w-[400px] flex-shrink-0">
+      <div className="w-[400px] flex-shrink-0 overflow-hidden">
         <ImagePanel />
       </div>
     </div>

@@ -6,12 +6,12 @@
  */
 
 export const apiConfig = {
-  // Mode switching
-  useMockApi: process.env.USE_MOCK_API !== "false", // Default to true for development
+  // Mode switching - default to false (use real API)
+  useMockApi: process.env.USE_MOCK_API === "true", // Default to false, use real LLM API
 
   // Zhipu AI (智谱AI) Configuration
   zhipu: {
-    apiKey: process.env.OPENAI_API_KEY || "", // Using OPENAI_API_KEY for Zhipu
+    apiKey: process.env.ZHIPU_API_KEY || process.env.OPENAI_API_KEY || "",
     baseUrl: process.env.OPENAI_BASE_URL || "https://open.bigmodel.cn/api/paas/v4",
   },
 

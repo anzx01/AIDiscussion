@@ -52,6 +52,7 @@ export function ImagePanel() {
     // Check if we're already processing this keyword
     if (processingKeywords.current.has(keyword)) {
       console.log("[ImagePanel] Keyword already processing:", keyword);
+      console.log("[ImagePanel] Current processing keywords:", Array.from(processingKeywords.current));
       return; // Already processing
     }
 
@@ -67,11 +68,28 @@ export function ImagePanel() {
 
     // Mark as processing
     processingKeywords.current.add(keyword);
+    console.log("[ImagePanel] Marked as processing, current set:", Array.from(processingKeywords.current));
 
     setLoading(true);
     try {
-      console.log("[ImagePanel] Searching images for:", keyword);
-      const imageSources = await searchImages(keyword, 1);
+      // Enhance search query with type-specific suffixes for better results
+      let enhancedKeyword = keyword;
+
+      // Don't add suffix if it already has one
+      const hasSuffix = /景点|旅游|美食|小吃|照片|图片|风光|景点$/.test(keyword);
+
+      if (!hasSuffix) {
+        if (type === "attraction") {
+          enhancedKeyword = `${keyword}景点`;
+        } else if (type === "food") {
+          enhancedKeyword = `${keyword}美食`;
+        } else if (type === "location") {
+          enhancedKeyword = `${keyword}风光`;
+        }
+      }
+
+      console.log("[ImagePanel] Searching images for:", enhancedKeyword);
+      const imageSources = await searchImages(enhancedKeyword, 1);
       console.log("[ImagePanel] Search results:", imageSources.length, "images");
 
       if (imageSources.length > 0) {
@@ -97,10 +115,12 @@ export function ImagePanel() {
       }
     } catch (error) {
       console.error("[ImagePanel] Error fetching image:", error);
+      console.error("[ImagePanel] Error details:", error instanceof Error ? error.message : "Unknown error");
     } finally {
       setLoading(false);
       // Remove from processing set
       processingKeywords.current.delete(keyword);
+      console.log("[ImagePanel] Removed from processing, current set:", Array.from(processingKeywords.current));
     }
   };
 

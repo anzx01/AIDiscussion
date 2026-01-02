@@ -28,7 +28,8 @@
       "Bash(dir:*)",
       "Bash(cmd //c taskkill //F //IM node.exe)",
       "Bash(del:*)",
-      "Bash(del \"src\\app\\api\\migrate\\route.ts\")"
+      "Bash(del \"src\\app\\api\\migrate\\route.ts\")",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

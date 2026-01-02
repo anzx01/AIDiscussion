@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { ControlButton } from "./ControlButton";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,11 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
   const [isSending, setIsSending] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
 
+  // Stable empty callback for ChatContainer
+  const handleChatComplete = useCallback(() => {
+    // No-op - completion is handled by the parent's onCompleted
+  }, []);
+
   // Timer
   useEffect(() => {
     const timer = setInterval(() => {
@@ -52,11 +57,12 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
     return () => clearInterval(timer);
   }, []);
 
-  // Poll for updates (respecting pause state)
+  // Poll for updates (respecting pause state and completion)
   useEffect(() => {
     if (isPaused) return; // Don't poll when paused
 
-    const interval = setInterval(async () => {
+    // Initial fetch
+    const fetchSession = async () => {
       try {
         const response = await fetch(`/api/discuss/${sessionId}`);
         const data = await response.json();
@@ -116,13 +122,31 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
           setIsCompleted(true);
           // Don't call onCompleted() to stay in the same view
         }
+
+        // Stop polling if completed - no more updates expected
+        return data.status === "completed";
       } catch (err) {
         setError("Failed to fetch progress");
+        return false;
+      }
+    };
+
+    // Initial fetch
+    let shouldStopPolling = false;
+    fetchSession().then(stop => {
+      shouldStopPolling = stop;
+    });
+
+    // Only start polling if not completed
+    const interval = setInterval(async () => {
+      const stop = await fetchSession();
+      if (stop && interval) {
+        clearInterval(interval);
       }
     }, 500);
 
     return () => clearInterval(interval);
-  }, [sessionId, isPaused, isCompleted]);
+  }, [sessionId, isPaused]);
 
   const handlePause = async () => {
     try {
@@ -216,9 +240,9 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
   };
 
   return (
-    <div className="flex h-screen bg-white dark:bg-slate-900">
+    <div className="flex h-full bg-white dark:bg-slate-900 overflow-hidden">
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Bar - Compact */}
         <div className="flex-shrink-0 border-b border-slate-200 dark:border-slate-700 px-6 py-3">
           <div className="flex items-center justify-between">
@@ -318,8 +342,8 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
         </div>
 
         {/* Chat Container - Takes remaining space */}
-        <div className="flex-1 overflow-y-auto">
-          <ChatContainer sessionId={sessionId} status={session?.status} onComplete={() => {}} />
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <ChatContainer sessionId={sessionId} status={session?.status} onComplete={handleChatComplete} />
         </div>
 
         {/* Bottom Input Area - Fixed at bottom */}
@@ -383,7 +407,7 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
       </div>
 
       {/* Image Panel - Fixed width on the right */}
-      <div className="w-[400px] flex-shrink-0">
+      <div className="w-[400px] flex-shrink-0 overflow-hidden">
         <ImagePanel />
       </div>
     </div>

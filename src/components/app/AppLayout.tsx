@@ -64,7 +64,7 @@ export function AppLayout({
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       {/* Sidebar - only show when NOT in new mode */}
       {viewMode !== "new" && (
         <Sidebar

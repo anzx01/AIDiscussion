@@ -70,8 +70,9 @@ export function Sidebar({
         ${
           isOpen
             ? "translate-x-0"
-            : "-translate-x-full md:relative md:translate-x-0"
+            : "-translate-x-full"
         }
+        md:relative md:translate-x-0
         `}
       >
         {/* Header - Fixed */}

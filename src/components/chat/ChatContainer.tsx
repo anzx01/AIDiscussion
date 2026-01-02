@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { DiscussionMessageType } from "@/db/schema/planner";
-import { extractEntitiesWithCache } from "@/lib/entity-extraction";
+import { extractEntitiesWithCacheClient } from "@/lib/client-api";
 
 interface ChatContainerProps {
   sessionId: string;
@@ -19,6 +19,7 @@ export function ChatContainer({ sessionId, status, onComplete }: ChatContainerPr
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMessageCount = useRef(0);
   const processedMessageIds = useRef<Set<string>>(new Set());
+  const processedEntities = useRef<Set<string>>(new Set()); // Track processed entities to avoid duplicate events
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -29,6 +30,19 @@ export function ChatContainer({ sessionId, status, onComplete }: ChatContainerPr
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Periodically clean up processed entities to avoid memory leaks
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      // Clear processed entities every 5 minutes to allow re-processing if needed
+      if (processedEntities.current.size > 0) {
+        console.log("[ChatContainer] Cleaning up processed entities, count:", processedEntities.current.size);
+        processedEntities.current.clear();
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
 
   // Poll for new messages
   useEffect(() => {
@@ -48,7 +62,7 @@ export function ChatContainer({ sessionId, status, onComplete }: ChatContainerPr
             clearInterval(intervalRef.current);
             intervalRef.current = null;
           }
-          return;
+          return true; // Stop polling
         }
 
         if (!response.ok) throw new Error("Failed to fetch messages");
@@ -80,7 +94,7 @@ export function ChatContainer({ sessionId, status, onComplete }: ChatContainerPr
               try {
                 console.log("[ChatContainer] Extracting entities from message:", msg.content.substring(0, 100));
                 // Pass the session question for context
-                const entities = await extractEntitiesWithCache(
+                const entities = await extractEntitiesWithCacheClient(
                   msg.content,
                   "", // context could be previous messages if needed
                   data.question || "" // Pass the original question
@@ -91,7 +105,16 @@ export function ChatContainer({ sessionId, status, onComplete }: ChatContainerPr
                 entities.forEach((entity) => {
                   if (entity.confidence > 0.6) {
                     // Only show high-confidence entities
+                    const entityKey = `${entity.keyword}-${entity.type}`;
+
+                    // Check if we've already processed this entity
+                    if (processedEntities.current.has(entityKey)) {
+                      console.log("[ChatContainer] Entity already processed, skipping:", entityKey);
+                      return;
+                    }
+
                     console.log("[ChatContainer] Dispatching displayImage event:", entity);
+                    processedEntities.current.add(entityKey); // Mark as processed
                     window.dispatchEvent(
                       new CustomEvent('displayImage', {
                         detail: {
@@ -120,18 +143,33 @@ export function ChatContainer({ sessionId, status, onComplete }: ChatContainerPr
             onComplete();
           }, 2000);
         }
+
+        // Stop polling if completed
+        return data.status === "completed";
       } catch (err) {
         console.error("Error fetching messages:", err);
         setError("Failed to load messages");
         setLoading(false);
+        return false;
       }
     };
 
     // Initial fetch
-    fetchMessages();
+    fetchMessages().then(shouldStop => {
+      if (shouldStop && intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    });
 
     // Poll every 500ms for new messages
-    intervalRef.current = setInterval(fetchMessages, 500);
+    intervalRef.current = setInterval(async () => {
+      const shouldStop = await fetchMessages();
+      if (shouldStop && intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }, 500);
 
     // Listen for session deletion event
     const handleSessionDeleted = (event: CustomEvent) => {
