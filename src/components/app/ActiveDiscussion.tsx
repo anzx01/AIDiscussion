@@ -196,13 +196,16 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
 
       if (response.ok) {
         setUserMessage("");
+        // Message sent successfully - AI responses will appear asynchronously
+        console.log("Message sent successfully, waiting for AI responses...");
       } else {
         const data = await response.json();
+        console.error("Failed to send message:", data);
         alert(data.error || "Failed to send message");
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      alert("Failed to send message");
+      alert("Failed to send message. Please check your network connection.");
     } finally {
       setIsSending(false);
     }
@@ -375,7 +378,7 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
                   ? "Select at least one AI model above..."
                   : isCompleted
                   ? "Ask a follow-up question..."
-                  : "Type a message to join the discussion..."}
+                  : "Type a message to join the discussion... (AI will respond automatically)"}
                 value={userMessage}
                 onChange={(e) => setUserMessage(e.target.value)}
                 disabled={isSending || selectedAgents.length === 0}

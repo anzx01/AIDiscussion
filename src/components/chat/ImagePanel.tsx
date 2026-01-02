@@ -22,6 +22,7 @@ export function ImagePanel() {
   const [loading, setLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const processingKeywords = useRef<Set<string>>(new Set());
+  const displayedImageUrls = useRef<Set<string>>(new Set()); // Track displayed image URLs to avoid duplicates
 
   useEffect(() => {
     // Listen for image display events
@@ -93,22 +94,43 @@ export function ImagePanel() {
       console.log("[ImagePanel] Search results:", imageSources.length, "images");
 
       if (imageSources.length > 0) {
-        const imgSource = imageSources[0];
-        const newImage: DisplayedImage = {
-          id: imgSource.id,
-          keyword,
-          type,
-          url: imgSource.url,
-          thumbnailUrl: imgSource.thumbnailUrl,
-          title: imgSource.title,
-          author: imgSource.author,
-          authorUrl: imgSource.authorUrl,
-          source: imgSource.source,
-          timestamp: Date.now(),
-        };
+        // Find first image with URL that hasn't been displayed yet
+        let imgSource = imageSources.find(img => !displayedImageUrls.current.has(img.url));
 
-        console.log("[ImagePanel] Adding image from", newImage.source, ":", newImage);
-        setImages(prev => [...prev.slice(-9), newImage]); // Keep only last 10 images
+        // If all images have been displayed, use the first one anyway
+        // (this handles edge case where all available images for this keyword are already shown)
+        if (!imgSource && imageSources.length > 0) {
+          console.log("[ImagePanel] All available images for this keyword already displayed, using first one");
+          imgSource = imageSources[0];
+        }
+
+        if (imgSource) {
+          // Double-check URL before adding
+          if (displayedImageUrls.current.has(imgSource.url)) {
+            console.log("[ImagePanel] Image URL already displayed, skipping:", imgSource.url);
+            return;
+          }
+
+          const newImage: DisplayedImage = {
+            id: imgSource.id,
+            keyword,
+            type,
+            url: imgSource.url,
+            thumbnailUrl: imgSource.thumbnailUrl,
+            title: imgSource.title,
+            author: imgSource.author,
+            authorUrl: imgSource.authorUrl,
+            source: imgSource.source,
+            timestamp: Date.now(),
+          };
+
+          console.log("[ImagePanel] Adding image from", newImage.source, ":", newImage);
+
+          // Mark this URL as displayed
+          displayedImageUrls.current.add(imgSource.url);
+
+          setImages(prev => [...prev.slice(-9), newImage]); // Keep only last 10 images
+        }
       } else {
         console.log("[ImagePanel] No images found for:", keyword);
         // No fallback - just log it

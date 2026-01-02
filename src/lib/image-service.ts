@@ -17,7 +17,9 @@ export async function searchImages(
 ): Promise<ImageSource[]> {
   // Use Bing Scraper (No API key needed, best coverage for Chinese content!)
   try {
-    const response = await fetch(`/api/scrape-images?q=${encodeURIComponent(query)}&count=${count}`);
+    // Add random parameter to avoid cached results and get more diverse images
+    const randomParam = Math.random().toString(36).substring(7);
+    const response = await fetch(`/api/scrape-images?q=${encodeURIComponent(query)}&count=${count}&_r=${randomParam}`);
     if (response.ok) {
       const data = await response.json();
       if (data.images && data.images.length > 0) {

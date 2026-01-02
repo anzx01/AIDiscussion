@@ -82,6 +82,16 @@ export async function triggerAIResponse(sessionId: string, userMessageId: string
 
     if (!session) {
       console.error("Session not found:", sessionId);
+      // Save error message to database
+      await db.insert(discussionMessage).values({
+        id: crypto.randomUUID(),
+        sessionId,
+        role: "assistant",
+        agentId: "system",
+        round: null,
+        content: "⚠️ Error: Session not found. Please refresh the page.",
+        replyToId: userMessageId,
+      });
       return;
     }
 
@@ -114,6 +124,21 @@ export async function triggerAIResponse(sessionId: string, userMessageId: string
     await generateAIResponses(session, allMessages, userMessageId, selectedAgents);
   } catch (error) {
     console.error("Error in triggerAIResponse:", error);
+    // Save error message to database so user can see it
+    try {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      await db.insert(discussionMessage).values({
+        id: crypto.randomUUID(),
+        sessionId,
+        role: "assistant",
+        agentId: "system",
+        round: null,
+        content: `⚠️ Error: ${errorMessage}. Please check your API configuration or try again.`,
+        replyToId: userMessageId,
+      });
+    } catch (dbError) {
+      console.error("Failed to save error message:", dbError);
+    }
   }
 }
 
@@ -188,7 +213,10 @@ The user just sent a message. Respond naturally and helpfully, considering all p
   // Generate responses for each selected agent
   for (const agentId of selectedAgents) {
     const participant = PARTICIPANTS[agentId as keyof typeof PARTICIPANTS];
-    if (!participant) continue;
+    if (!participant) {
+      console.error(`Unknown agent: ${agentId}`);
+      continue;
+    }
 
     console.log(`${agentId} responding...`);
 
@@ -198,23 +226,44 @@ The user just sent a message. Respond naturally and helpfully, considering all p
       budgetAdvisor: `${systemPromptBase}\n\nYou are the Budget Advisor - financially conscious. Focus on cost-effectiveness.`,
     };
 
-    const response = await callLLM(
-      participant.model,
-      agentSystemPrompts[agentId],
-      `The user said: "${allMessages.find(m => m.id === userMessageId)?.content}"\n\nProvide your response.`,
-      participant.provider,
-      300
-    );
+    try {
+      const response = await callLLM(
+        participant.model,
+        agentSystemPrompts[agentId],
+        `The user said: "${allMessages.find(m => m.id === userMessageId)?.content}"\n\nProvide your response.`,
+        participant.provider,
+        300
+      );
 
-    await db.insert(discussionMessage).values({
-      id: crypto.randomUUID(),
-      sessionId: session.id,
-      role: "assistant",
-      agentId,
-      round: null,
-      content: response,
-      replyToId: userMessageId,
-    });
+      await db.insert(discussionMessage).values({
+        id: crypto.randomUUID(),
+        sessionId: session.id,
+        role: "assistant",
+        agentId,
+        round: null,
+        content: response,
+        replyToId: userMessageId,
+      });
+
+      console.log(`${agentId} response saved successfully`);
+    } catch (error) {
+      console.error(`Error generating response for ${agentId}:`, error);
+      // Save error message for this specific agent
+      try {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        await db.insert(discussionMessage).values({
+          id: crypto.randomUUID(),
+          sessionId: session.id,
+          role: "assistant",
+          agentId,
+          round: null,
+          content: `⚠️ ${agentId} failed to respond: ${errorMessage}`,
+          replyToId: userMessageId,
+        });
+      } catch (dbError) {
+        console.error(`Failed to save error message for ${agentId}:`, dbError);
+      }
+    }
   }
 
   console.log("All AI responses completed for:", selectedAgents);
