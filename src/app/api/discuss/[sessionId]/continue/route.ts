@@ -104,18 +104,24 @@ export async function triggerAIResponse(sessionId: string, userMessageId: string
 
     console.log(`Total messages in session: ${allMessages.length}`);
 
-    // Check if AI is already processing
+    // Check if AI has already responded to this specific user message
+    // This prevents duplicate responses while allowing follow-up discussions
+    const alreadyResponded = allMessages.some(msg =>
+      msg.role === "assistant" &&
+      msg.replyToId === userMessageId
+    );
+
+    if (alreadyResponded) {
+      console.log("AI already responded to this message, skipping to avoid duplicates");
+      return;
+    }
+
+    // Also check if there's a very recent response (within 2 seconds) to prevent race conditions
     const lastMessage = allMessages[allMessages.length - 1];
     if (lastMessage && lastMessage.role === "assistant") {
       const timeSinceLastMessage = Date.now() - new Date(lastMessage.createdAt).getTime();
-      if (timeSinceLastMessage < 5000) {
-        console.log("AI recently responded, skipping to avoid duplicates");
-        return;
-      }
-    } else if (lastMessage && lastMessage.role === null) {
-      const timeSinceLastMessage = Date.now() - new Date(lastMessage.createdAt).getTime();
-      if (timeSinceLastMessage < 5000) {
-        console.log("AI recently responded (old message), skipping to avoid duplicates");
+      if (timeSinceLastMessage < 2000 && lastMessage.replyToId !== userMessageId) {
+        console.log("AI very recently responded to a different message, waiting to avoid conflicts");
         return;
       }
     }

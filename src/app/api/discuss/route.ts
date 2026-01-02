@@ -172,6 +172,7 @@ async function runDiscussion(
 
   if (apiConfig.useMockApi) {
     // Return mock data for development, but still save to database
+    console.log("[runDiscussion] Using Mock API mode");
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Save mock messages to database
@@ -212,6 +213,21 @@ async function runDiscussion(
       content: MOCK_DISCUSSION.round3.recommendation,
     });
 
+    // Update session status to completed
+    await db
+      .update(plannerSession)
+      .set({
+        round1Proposals: MOCK_DISCUSSION.round1,
+        round2Critiques: MOCK_DISCUSSION.round2,
+        round3Consensus: MOCK_DISCUSSION.round3,
+        agreements: JSON.stringify(MOCK_DISCUSSION.round3.agreements),
+        disagreements: JSON.stringify(MOCK_DISCUSSION.round3.disagreements),
+        recommendation: MOCK_DISCUSSION.round3.recommendation,
+        status: "completed",
+      })
+      .where(eq(plannerSession.id, sessionId));
+
+    console.log("[runDiscussion] Mock discussion completed, status updated to 'completed'");
     return MOCK_DISCUSSION;
   }
 
@@ -397,12 +413,18 @@ export async function POST(req: NextRequest) {
           .where(eq(plannerSession.id, sessionId));
         console.log("Database updated successfully");
       })
-      .catch((error) => {
+      .catch(async (error) => {
         console.error("Discussion failed:", error);
+        console.error("Error details:", error instanceof Error ? error.message : String(error));
         // Update session with failed status
-        db.update(plannerSession)
-          .set({ status: "failed" })
-          .where(eq(plannerSession.id, sessionId));
+        try {
+          await db.update(plannerSession)
+            .set({ status: "failed" })
+            .where(eq(plannerSession.id, sessionId));
+          console.log("Status updated to 'failed'");
+        } catch (dbError) {
+          console.error("Failed to update status to 'failed':", dbError);
+        }
       });
 
     return NextResponse.json({

@@ -138,12 +138,13 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
     });
 
     // Only start polling if not completed
+    // Poll every 2 seconds instead of 500ms to reduce server load
     const interval = setInterval(async () => {
       const stop = await fetchSession();
       if (stop && interval) {
         clearInterval(interval);
       }
-    }, 500);
+    }, 2000); // Changed from 500ms to 2000ms
 
     return () => clearInterval(interval);
   }, [sessionId, isPaused]);
