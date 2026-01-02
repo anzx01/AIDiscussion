@@ -11,12 +11,14 @@ import {
 } from "@/lib/prompts";
 import { eq } from "drizzle-orm";
 import { extractTitle } from "@/lib/title-extractor";
+import { extractDestinations } from "@/lib/entity-extraction";
+import { recommendTripDuration } from "@/lib/duration-recommender";
 
 /**
  * Multi-Model Discussion API
  *
  * This endpoint orchestrates a 3-round discussion between multiple AI models
- * to generate a comprehensive 2-day New York trip plan.
+ * to generate a comprehensive trip plan with flexible duration.
  */
 
 interface DiscussRequest {
@@ -24,38 +26,6 @@ interface DiscussRequest {
   pace: "fast" | "balanced" | "relaxed";
   budget: "budget-conscious" | "flexible";
   focus: "experience-first" | "practical";
-}
-
-/**
- * Extract destination from user question
- * Supports patterns like:
- * - "Plan a 2-day trip to Paris"
- * - "Plan a weekend in Tokyo"
- * - "I want to visit London for 2 days"
- */
-function extractDestination(question: string): string {
-  const lowerQuestion = question.toLowerCase();
-
-  // Pattern 1: "to [destination]"
-  const toMatch = lowerQuestion.match(/\bto\s+([a-z\s]+?)(?:\s+for|\s+in|\s+during|\.|$)/i);
-  if (toMatch && toMatch[1]) {
-    return toMatch[1].trim();
-  }
-
-  // Pattern 2: "in [destination]"
-  const inMatch = lowerQuestion.match(/\bin\s+([a-z\s]+?)(?:\s+for|\s+during|\.|$)/i);
-  if (inMatch && inMatch[1]) {
-    return inMatch[1].trim();
-  }
-
-  // Pattern 3: "visit [destination]"
-  const visitMatch = lowerQuestion.match(/\bvisit\s+([a-z\s]+?)(?:\s+for|\s+during|\.|$)/i);
-  if (visitMatch && visitMatch[1]) {
-    return visitMatch[1].trim();
-  }
-
-  // Default: return the question as-is (AI will figure it out)
-  return question.trim();
 }
 
 // Mock data for development
@@ -187,7 +157,8 @@ async function callLLM(
 async function runDiscussion(
   params: DiscussRequest,
   sessionId: string,
-  destination: string
+  destinations: string[],
+  duration: number
 ): Promise<{
   round1: Record<string, string>;
   round2: Record<string, string>;
@@ -197,6 +168,8 @@ async function runDiscussion(
     recommendation: string;
   };
 }> {
+  console.log(`[runDiscussion] Starting discussion with duration: ${duration} days`);
+
   if (apiConfig.useMockApi) {
     // Return mock data for development, but still save to database
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -248,14 +221,14 @@ async function runDiscussion(
   const round1MessageIds: Record<string, string> = {};
   for (const [key, participant] of Object.entries(PARTICIPANTS)) {
     console.log(`Round 1: ${key} proposing...`);
-    const systemPrompt = getSystemPrompt(key as any);
+    const systemPrompt = getSystemPrompt(key as any, duration); // Pass duration
     const userPrompt = getRound1Prompt(
       key as any,
       params.question,
       params.pace,
       params.budget,
       params.focus,
-      destination
+      destinations  // Pass array of destinations instead of single destination
     );
     round1[key] = await callLLM(
       participant.model,
@@ -290,7 +263,7 @@ async function runDiscussion(
   const round2: Record<string, string> = {};
   for (const [key, participant] of Object.entries(PARTICIPANTS)) {
     console.log(`Round 2: ${key} critiquing...`);
-    const systemPrompt = getSystemPrompt(key as any);
+    const systemPrompt = getSystemPrompt(key as any, duration); // Pass duration
     const userPrompt = getRound2Prompt(key as any, round1);
     round2[key] = await callLLM(
       participant.model,
@@ -323,8 +296,8 @@ async function runDiscussion(
 
   // Round 3: Synthesis
   console.log("Starting Round 3 (Synthesis)...");
-  const systemPrompt = getSystemPrompt("planner");
-  const userPrompt = getRound3Prompt(round1, round2);
+  const systemPrompt = getSystemPrompt("planner", duration); // Pass duration
+  const userPrompt = getRound3Prompt(round1, round2, duration); // Pass duration
   const round3Result = await callLLM(
     PARTICIPANTS.planner.model,
     systemPrompt,
@@ -366,9 +339,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Question is required" }, { status: 400 });
     }
 
-    // Extract destination from question
-    const destination = extractDestination(body.question);
-    console.log("Extracted destination:", destination);
+    // Extract destinations from question (filter out return trips like "回北京")
+    const allDestinations = await extractDestinations(body.question);
+    const destinations = allDestinations
+      .filter(d => !d.isReturnTrip)
+      .map(d => d.location);
+    console.log("Extracted destinations (excluding return trips):", destinations);
+
+    // Determine trip duration using intelligent recommendation
+    console.log("Determining trip duration...");
+    const duration = await recommendTripDuration({
+      destinations: allDestinations.filter(d => !d.isReturnTrip),
+      userQuestion: body.question,
+      pace: body.pace,
+    });
+    console.log(`Recommended trip duration: ${duration} days`);
 
     // Generate session ID
     const sessionId = crypto.randomUUID();
@@ -383,6 +368,7 @@ export async function POST(req: NextRequest) {
         pace: body.pace,
         budget: body.budget,
         focus: body.focus,
+        duration, // Save the recommended duration
         status: "processing",
       });
       console.log("Session created successfully");
@@ -393,7 +379,7 @@ export async function POST(req: NextRequest) {
 
     // Return immediately with sessionId, run discussion in background
     // Run discussion asynchronously (don't await)
-    runDiscussion(body, sessionId, destination)
+    runDiscussion(body, sessionId, destinations, duration)
       .then(async (discussionResult) => {
         console.log("Discussion completed, updating database...");
         // Update session with results
@@ -423,6 +409,7 @@ export async function POST(req: NextRequest) {
       sessionId,
       status: "processing",
       message: "Discussion started",
+      duration, // Include duration in response for frontend use
     });
   } catch (error) {
     console.error("Error in /api/discuss:", error);

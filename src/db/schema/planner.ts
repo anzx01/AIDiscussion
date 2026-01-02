@@ -9,6 +9,7 @@ export const plannerSession = pgTable("planner_session", {
   pace: text("pace").notNull(), // fast | balanced | relaxed
   budget: text("budget").notNull(), // budget-conscious | flexible
   focus: text("focus").notNull(), // experience-first | practical
+  duration: integer("duration"), // Trip duration in days (recommended or user-specified)
 
   // Discussion results (stored as JSON)
   round1Proposals: json("round1_proposals"), // Independent proposals

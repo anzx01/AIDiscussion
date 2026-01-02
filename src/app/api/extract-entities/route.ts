@@ -19,16 +19,22 @@ export async function POST(req: NextRequest) {
       questionLength: question?.length || 0,
     });
 
-    // Extract entities using the server-side function
-    const entities = await extractEntitiesFromMessage(
+    // Extract entities using the server-side function (now returns ExtractionResult)
+    const result = await extractEntitiesFromMessage(
       message,
       context || "",
       question || ""
     );
 
-    console.log("[API /extract-entities] Successfully extracted entities:", entities.length);
+    console.log("[API /extract-entities] Successfully extracted result:", {
+      destinations: result.destinations.length,
+      entities: result.entities.length
+    });
 
-    return NextResponse.json({ entities });
+    return NextResponse.json({
+      destinations: result.destinations,
+      entities: result.entities
+    });
   } catch (error) {
     console.error("[API /extract-entities] Error:", error);
     return NextResponse.json(

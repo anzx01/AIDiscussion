@@ -77,7 +77,7 @@ export function AppLayout({
       )}
 
       {/* Main Content Area - Render based on viewMode */}
-      <div className={`flex ${viewMode === "new" ? 'flex-1 justify-center items-center' : 'flex-1'} flex`}>
+      <div className={`flex ${viewMode === "new" ? 'flex-1 justify-center items-center' : 'flex-1 h-full'} flex`}>
         {viewMode === "new" && (
           <>
             {console.log("[AppLayout] Rendering NewDiscussionForm")}
@@ -92,17 +92,22 @@ export function AppLayout({
         )}
 
         {viewMode === "progress" && selectedSessionId && (
-          <ActiveDiscussion
-            sessionId={selectedSessionId}
-            onCompleted={() => {
-              console.log("[AppLayout] Discussion completed");
-              setViewMode("history");
-            }}
-          />
+          <div className="w-full h-full">
+            <ActiveDiscussion
+              key={selectedSessionId}
+              sessionId={selectedSessionId}
+              onCompleted={() => {
+                console.log("[AppLayout] Discussion completed");
+                setViewMode("history");
+              }}
+            />
+          </div>
         )}
 
         {viewMode === "history" && selectedSessionId && (
-          <HistoryViewer sessionId={selectedSessionId} />
+          <div className="w-full h-full">
+            <HistoryViewer key={selectedSessionId} sessionId={selectedSessionId} />
+          </div>
         )}
       </div>
     </div>

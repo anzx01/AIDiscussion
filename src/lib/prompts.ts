@@ -1,10 +1,10 @@
-/**
+2/**
  * MULTI-MODEL DISCUSSION PROMPTS
  *
  * This file contains ALL prompt templates for the multi-model discussion system.
  * As required by the specification, all prompts are in a single, editable file.
  *
- * IMPORTANT: This system supports 2-day trip planning for ANY destination worldwide.
+ * IMPORTANT: This system supports flexible-duration trip planning for ANY destination worldwide.
  */
 
 // ============================================================================
@@ -38,8 +38,13 @@ export const PARTICIPANTS = {
 // SYSTEM PROMPTS
 // ============================================================================
 
-export const SYSTEM_PROMPTS = {
-  planner: `You are the Planner for a 2-day trip planning discussion.
+/**
+ * Get system prompts with dynamic duration
+ * @param duration - Total trip duration in days
+ */
+export function getSystemPrompts(duration: number) {
+  return {
+    planner: `You are the Planner for a ${duration}-day trip planning discussion.
 
 YOUR ROLE:
 - Create structured, logical itineraries
@@ -48,12 +53,12 @@ YOUR ROLE:
 - Focus on the visitor experience
 
 YOUR CONSTRAINTS:
-- Plan 2-day trips to the user's specified destination
+- Plan ${duration}-day trips to the user's specified destination(s)
 - Work within the user's specified pace, budget, and focus preferences
 - Be realistic about timing and distances
 - Prioritize must-see attractions while allowing for serendipity`,
 
-  realityChecker: `You are the Reality Checker for a 2-day trip planning discussion.
+    realityChecker: `You are the Reality Checker for a ${duration}-day trip planning discussion.
 
 YOUR ROLE:
 - Validate timing and logistics
@@ -62,12 +67,12 @@ YOUR ROLE:
 - Suggest alternatives when timing doesn't work
 
 YOUR CONSTRAINTS:
-- Critique 2-day itineraries for the specified destination
+- Critique ${duration}-day itineraries for the specified destination(s)
 - Use real-world knowledge of local transit, crowds, and seasonal patterns
 - Be specific about what won't work and why
 - Offer concrete alternatives`,
 
-  budgetAdvisor: `You are the Budget Advisor for a 2-day trip planning discussion.
+    budgetAdvisor: `You are the Budget Advisor for a ${duration}-day trip planning discussion.
 
 YOUR ROLE:
 - Evaluate cost efficiency of proposals
@@ -76,11 +81,15 @@ YOUR ROLE:
 - Flag overpriced or tourist-trap recommendations
 
 YOUR CONSTRAINTS:
-- Evaluate 2-day itineraries for the specified destination
+- Evaluate ${duration}-day itineraries for the specified destination(s)
 - Respect user's budget preference (budget-conscious vs flexible)
 - Consider both direct costs and opportunity costs
 - Suggest practical ways to save money without sacrificing experience`,
-} as const;
+  } as const;
+}
+
+// Keep the old constant for backward compatibility (default to 2 days)
+export const SYSTEM_PROMPTS = getSystemPrompts(2);
 
 // ============================================================================
 // ROUND 1: INDEPENDENT PROPOSALS
@@ -92,7 +101,7 @@ export const ROUND_1_PROMPT = (
   pace: string,
   budget: string,
   focus: string,
-  destination: string
+  destinations: string[]
 ) => `ROUND 1: INDEPENDENT PROPOSAL
 
 You are the ${role}.
@@ -100,8 +109,8 @@ You are the ${role}.
 USER QUESTION:
 ${userQuestion}
 
-DESTINATION:
-${destination}
+DESTINATIONS:
+${destinations.join("、")}
 
 USER PREFERENCES:
 - Pace: ${pace}
@@ -109,25 +118,32 @@ USER PREFERENCES:
 - Focus: ${focus}
 
 TASK:
-Present your 2-day itinerary proposal for ${destination} in a CONVERSATIONAL, DISCUSSION STYLE.
+Present your itinerary proposal for this multi-city trip covering ${destinations.join("、")} in a CONVERSATIONAL, DISCUSSION STYLE.
 
 CRITICAL REQUIREMENTS:
-1. Keep it SHORT and CONVERSATIONAL - 3-5 sentences maximum
+1. Keep it SHORT and CONVERSATIONAL - 5-8 sentences maximum for the entire trip
 2. Think of this as a meeting where you're presenting your ideas verbally
-3. Focus on your top 2-3 key recommendations based on your role's perspective
-4. Be specific but concise - mention key attractions but don't list every detail
+3. Focus on your top recommendations for EACH destination based on your role's perspective
+4. Be specific but concise - mention key attractions for each city but don't list every detail
 5. DO NOT write a full, detailed itinerary - save that for the final synthesis
 
+IMPORTANT:
+- Cover ALL ${destinations.length} destinations in your proposal
+- Allocate appropriate time for each city based on the user's specified durations
+- Consider logistics between cities (transportation, timing)
+- Keep recommendations practical and realistic
+
 EXAMPLE OF RIGHT STYLE:
-"Based on the ${pace} pace and ${budget} budget, I'd recommend starting Day 1 with [key attraction], then moving to [second attraction] in the afternoon. For Day 2, focus on [key areas]. This keeps travel time minimal and matches the ${focus} focus."
+"Based on the ${pace} pace and ${budget} budget, here's my recommendation for this ${destinations.length}-city trip. For [first city], start with [key attractions]. Then move to [second city] and focus on [areas]. Finally, in [third city], prioritize [highlights]. This route makes sense logistically and matches the ${focus} focus."
 
 REMEMBER:
 - This is Round 1 of a live discussion
 - Others will build on and critique your ideas
 - Keep it conversational and concise
 - Don't write a wall of text - write like you're speaking in a meeting
+- Make sure to address ALL destinations in the trip
 
-Your brief proposal (3-5 sentences):`;
+Your brief proposal (5-8 sentences):`;
 
 // ============================================================================
 // ROUND 2: CRITIQUE ONLY
@@ -179,7 +195,8 @@ Your brief critiques (2-4 sentences per person):`;
 
 export const ROUND_3_PROMPT = (
   proposals: Record<string, string>,
-  critiques: Record<string, string>
+  critiques: Record<string, string>,
+  duration: number = 2
 ) => `ROUND 3: CONSENSUS SYNTHESIS
 
 You are the Planner. Your job is to synthesize the discussion into a final recommendation.
@@ -219,10 +236,10 @@ YOUR OUTPUT MUST INCLUDE:
    - How you resolved them
    - Be concise
 
-3. **FINAL RECOMMENDATION** (6-10 sentences total)
-   - Your best 2-day itinerary incorporating all feedback
+3. **FINAL RECOMMENDATION** (${Math.max(6, duration * 2)}-${Math.max(10, duration * 3)} sentences total)
+   - Your best ${duration}-day itinerary incorporating all feedback
    - Clear reasoning for your choices
-   - Split into Day 1 and Day 2
+   - Split into Day 1 through Day ${duration}
    - Keep it conversational but informative
 
 FORMAT:
@@ -237,8 +254,7 @@ FORMAT:
 
 ## 👉 Final recommendation
 
-Day 1: [3-4 sentences describing the plan]
-Day 2: [3-4 sentences describing the plan]
+${Array.from({ length: duration }, (_, i) => `Day ${i + 1}: [3-4 sentences describing the plan]`).join("\n")}
 
 Remember: This is the final synthesis. Be comprehensive but stay conversational and concise.`;
 
@@ -247,11 +263,14 @@ Remember: This is the final synthesis. Be comprehensive but stay conversational 
 // ============================================================================
 
 /**
- * Get the system prompt for a given role
+ * Get the system prompt for a given role with dynamic duration
+ * @param role - The participant role
+ * @param duration - Trip duration in days (defaults to 2 for backward compatibility)
  */
-export function getSystemPrompt(role: keyof typeof PARTICIPANTS): string {
+export function getSystemPrompt(role: keyof typeof PARTICIPANTS, duration: number = 2): string {
   const roleKey = role === "planner" ? "planner" : role === "realityChecker" ? "realityChecker" : "budgetAdvisor";
-  return SYSTEM_PROMPTS[roleKey];
+  const prompts = getSystemPrompts(duration);
+  return prompts[roleKey];
 }
 
 /**
@@ -263,7 +282,7 @@ export function getRound1Prompt(
   pace: string,
   budget: string,
   focus: string,
-  destination: string
+  destinations: string[]
 ): string {
   return ROUND_1_PROMPT(
     PARTICIPANTS[role].role,
@@ -271,7 +290,7 @@ export function getRound1Prompt(
     pace,
     budget,
     focus,
-    destination
+    destinations
   );
 }
 
@@ -286,11 +305,15 @@ export function getRound2Prompt(
 }
 
 /**
- * Get Round 3 prompt (only for Planner)
+ * Get Round 3 prompt (only for Planner) with dynamic duration
+ * @param proposals - Round 1 proposals
+ * @param critiques - Round 2 critiques
+ * @param duration - Trip duration in days (defaults to 2 for backward compatibility)
  */
 export function getRound3Prompt(
   proposals: Record<string, string>,
-  critiques: Record<string, string>
+  critiques: Record<string, string>,
+  duration: number = 2
 ): string {
-  return ROUND_3_PROMPT(proposals, critiques);
+  return ROUND_3_PROMPT(proposals, critiques, duration);
 }

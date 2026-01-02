@@ -9,14 +9,26 @@ interface ExtractedEntity {
   confidence: number;
 }
 
+interface DestinationInfo {
+  location: string;
+  duration?: number; // Duration in days
+  order: number; // Order in the trip (1st, 2nd, etc.)
+}
+
+interface ExtractionResult {
+  destinations: DestinationInfo[];
+  entities: ExtractedEntity[];
+}
+
 /**
  * Extract entities from a message using the server-side API
+ * Now supports multiple destinations
  */
 export async function extractEntitiesFromMessageClient(
   message: string,
   context: string = "",
   question: string = ""
-): Promise<ExtractedEntity[]> {
+): Promise<ExtractionResult> {
   try {
     console.log("[Client API] Calling extract-entities API:", {
       messageLength: message.length,
@@ -43,9 +55,15 @@ export async function extractEntitiesFromMessageClient(
     }
 
     const data = await response.json();
-    console.log("[Client API] Successfully extracted entities:", data.entities?.length || 0);
+    console.log("[Client API] Successfully extracted result:", {
+      destinations: data.destinations?.length || 0,
+      entities: data.entities?.length || 0
+    });
 
-    return data.entities || [];
+    return {
+      destinations: data.destinations || [],
+      entities: data.entities || []
+    };
   } catch (error) {
     console.error("[Client API] Failed to extract entities:", error);
     throw error;
@@ -55,24 +73,27 @@ export async function extractEntitiesFromMessageClient(
 /**
  * Cache entity extraction results
  */
-const extractionCache = new Map<string, { entities: ExtractedEntity[]; timestamp: number }>();
+const extractionCache = new Map<string, { result: ExtractionResult; timestamp: number }>();
 
 export async function extractEntitiesWithCacheClient(
   message: string,
   context: string = "",
   question: string = ""
-): Promise<ExtractedEntity[]> {
+): Promise<ExtractionResult> {
   const cacheKey = `${message.substring(0, 100)}-${context.substring(0, 50)}-${question.substring(0, 50)}`;
   const cached = extractionCache.get(cacheKey);
 
   if (cached && Date.now() - cached.timestamp < 60000) {
     // Cache for 1 minute
-    console.log("[Client API] Using cached entities");
-    return cached.entities;
+    console.log("[Client API] Using cached extraction result");
+    return cached.result;
   }
 
-  const entities = await extractEntitiesFromMessageClient(message, context, question);
-  extractionCache.set(cacheKey, { entities, timestamp: Date.now() });
+  const result = await extractEntitiesFromMessageClient(message, context, question);
+  extractionCache.set(cacheKey, { result, timestamp: Date.now() });
 
-  return entities;
+  return result;
 }
+
+// Export types for use in components
+export type { ExtractedEntity, DestinationInfo, ExtractionResult };

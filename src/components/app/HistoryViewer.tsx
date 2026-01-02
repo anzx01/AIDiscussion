@@ -247,7 +247,7 @@ export function HistoryViewer({ sessionId }: HistoryViewerProps) {
 
       {/* Image Panel - Fixed width on the right */}
       <div className="w-[400px] flex-shrink-0 overflow-hidden">
-        <ImagePanel />
+        <ImagePanel key={sessionId} />
       </div>
     </div>
   );

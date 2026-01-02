@@ -23,11 +23,11 @@ export async function searchImages(
       if (data.images && data.images.length > 0) {
         console.log("[ImageService] Using Bing Scraper results, found", data.images.length, "images");
         return data.images.map((img: any, index: number) => ({
-          id: `bing-scraper-${Date.now()}-${index}`,
+          id: `bing-scraper-${Date.now()}-${index}-${Math.random().toString(36).substring(7)}`,
           url: img.url,
           thumbnailUrl: img.thumbnailUrl,
           title: img.title,
-          author: "Bing搜索",
+          author: "网络搜索",
           authorUrl: img.sourceUrl,
           source: "bing-scraper" as const,
         }));

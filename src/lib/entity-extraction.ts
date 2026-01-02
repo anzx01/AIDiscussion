@@ -6,54 +6,250 @@ interface ExtractedEntity {
   confidence: number;
 }
 
+interface DestinationInfo {
+  location: string;
+  duration?: number; // Duration in days
+  order: number; // Order in the trip (1st, 2nd, etc.)
+  isReturnTrip?: boolean; // Whether this is the return trip (e.g., "回北京")
+}
+
+interface ExtractionResult {
+  destinations: DestinationInfo[];
+  entities: ExtractedEntity[];
+}
+
+/**
+ * Use AI to intelligently filter destinations vs return trips
+ * This is more flexible than rule-based matching
+ */
+async function filterDestinationsWithAI(
+  question: string,
+  allDestinations: DestinationInfo[]
+): Promise<DestinationInfo[]> {
+  if (allDestinations.length === 0) {
+    return [];
+  }
+
+  // If there's only 1 destination, it's definitely a travel destination
+  if (allDestinations.length === 1) {
+    return allDestinations;
+  }
+
+  // If using mock API, use simple heuristic (last destination is return trip)
+  if (apiConfig.useMockApi) {
+    console.log("[AI Filter] Using mock mode - marking last destination as return trip");
+    return allDestinations.map((d, i) => ({
+      ...d,
+      isReturnTrip: i === allDestinations.length - 1
+    }));
+  }
+
+  try {
+    const destinationsList = allDestinations.map(d =>
+      `${d.location}${d.duration ? `(${d.duration}天)` : ''}`
+    ).join("、");
+
+    const prompt = `你是一个旅行规划助手。请分析用户的旅行问题，判断哪些地点是真正的旅游目的地，哪些是返回起点。
+
+用户的问题：${question}
+
+提取的所有地点：${destinationsList}
+
+请分析并返回JSON格式：
+{
+  "travelDestinations": ["地点1", "地点2", ...],  // 真正的旅游目的地
+  "returnTrip": "地点X"  // 返回起点（如果有的话），如果没有返回null
+}
+
+判断标准：
+1. **旅游目的地**：用户明确表示要去游览、参观、游玩的地方
+2. **返回起点**：旅行结束后的返回地点，通常用"回"、"返回"、"最后到"等词语
+3. 如果用户说"最后回北京"、"结束于上海"等，这些是返回起点，不是旅游目的地
+
+只返回JSON，不要其他内容。`;
+
+    console.log("[AI Filter] Calling LLM to intelligently filter destinations");
+    const response = await fetch(`${apiConfig.deepseek.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiConfig.deepseek.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.1, // Low temperature for consistent classification
+        max_tokens: 200,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn("[AI Filter] API call failed, using rule-based fallback");
+      // Fallback: last destination is return trip
+      return allDestinations.map((d, i) => ({
+        ...d,
+        isReturnTrip: i === allDestinations.length - 1
+      }));
+    }
+
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    console.log("[AI Filter] LLM response:", content);
+
+    // Parse JSON response
+    const result = JSON.parse(content);
+    const travelDestinations = result.travelDestinations || [];
+    const returnTrip = result.returnTrip;
+
+    // Mark destinations
+    return allDestinations.map(d => ({
+      ...d,
+      isReturnTrip: d.location === returnTrip || !travelDestinations.includes(d.location)
+    }));
+  } catch (error) {
+    console.error("[AI Filter] Error using AI, falling back to rule-based:", error);
+    // Fallback: use simple rule-based marking
+    return allDestinations.map((d, i) => ({
+      ...d,
+      isReturnTrip: i === allDestinations.length - 1
+    }));
+  }
+}
+
+/**
+ * Extract multiple destinations from a travel question
+ * Supports patterns like "去成都呆2天，然后再去重庆呆3天"
+ */
+export async function extractDestinations(question: string): Promise<DestinationInfo[]> {
+  const destinations: DestinationInfo[] = [];
+
+  // Pattern to find all destinations with their durations
+  // Matches: "去成都呆2天", "去重庆3天", "在 Paris 5 days", "回北京", etc.
+  const patterns = [
+    // Chinese pattern: 去/在/游/回/到/从 [地点] [数字]天/日 (added "回", "到", "从")
+    /(?:去|在|游|参观|游览|回|到|从)([\u4e00-\u9fa5]{2,15})(?:呆|玩|住|停留|停留|游览)?(?:\s*)(\d+)\s*(?:天|日)/g,
+    // Chinese pattern: [数字]天/日 [地点]
+    /(\d+)\s*(?:天|日)\s*(?:去|在|回|到)?([\u4e00-\u9fa5]{2,15})/g,
+    // Simple pattern: "我想去XX" or "推荐XX" without duration
+    /(?:我想|想去|推荐|规划)([\u4e00-\u9fa5]{2,15})(?:旅|旅游|游玩|的)?/g,
+    // Pattern: XX旅游, XX游 at start
+    /([\u4e00-\u9fa5]{2,15})(?:一日游|二日游|三日游|旅|旅游|游)/g,
+    // Pattern: "XX一日游" etc.
+    /(?:^|\s)([\u4e00-\u9fa5]{2,15})(?:一日游|二日游|三日游)/g,
+    // Pattern: 去/在/游/回/到/从 [地点] without duration (added "回", "到", "从", "然后")
+    /(?:然后|接着|之后)?(?:去|在|游|回|到|从)([\u4e00-\u9fa5]{2,15})(?:的|，|。|$)/g,
+  ];
+
+  // Try to extract destinations with durations
+  for (const pattern of patterns) {
+    const matches = question.matchAll(pattern);
+    for (const match of matches) {
+      let location: string;
+      let duration: number | undefined;
+
+      // Check which pattern matched and extract accordingly
+      if (match[1] && match[2]) {
+        // Pattern has both location and duration
+        if (isNaN(parseInt(match[1]))) {
+          // First group is location, second is duration
+          location = match[1].trim();
+          duration = parseInt(match[2]);
+        } else {
+          // First group is duration, second is location
+          duration = parseInt(match[1]);
+          location = match[2].trim();
+        }
+      } else if (match[1]) {
+        // Only have location
+        location = match[1].trim();
+        // Try to find duration separately
+        const durationMatch = question.match(new RegExp(`${location}(?:呆|玩|住|停留)?(?:\\s*)(\\d+)\\s*(?:天|日)`));
+        if (durationMatch) {
+          duration = parseInt(durationMatch[1]);
+        }
+      }
+
+      if (location) {
+        // Avoid duplicates
+        const exists = destinations.some(d => d.location === location);
+        if (!exists) {
+          destinations.push({
+            location,
+            duration,
+            order: destinations.length + 1
+          });
+        }
+      }
+    }
+  }
+
+  // If no destinations found, try simple location extraction
+  if (destinations.length === 0) {
+    const simpleLocationPatterns = [
+      /(?:去|在|游览|参观|来到|回|到|从)([\u4e00-\u9fa5]{2,15})(?:旅|旅游|游玩|行程|trip|tour)?/,
+      /^([\u4e00-\u9fa5]{2,15})(?:旅|旅游|游)/,
+      /([\u4e00-\u9fa5]{2,10})/,
+    ];
+
+    for (const pattern of simpleLocationPatterns) {
+      const match = question.match(pattern);
+      if (match && match[1]) {
+        const location = match[1].trim();
+        // Avoid common non-location words
+        const skipWords = ["我想", "帮我", "推荐", "规划", "怎么", "如何", "什么", "哪里", "哪些"];
+        if (!skipWords.includes(location)) {
+          destinations.push({
+            location,
+            duration: undefined,
+            order: 1
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  console.log("[extractDestinations] Found destinations:", destinations);
+
+  // Use AI to intelligently filter travel destinations vs return trips
+  return await filterDestinationsWithAI(question, destinations);
+}
+
 /**
  * Extract entities (attractions, food, locations) from AI conversation
  * Uses LLM to analyze the message
+ * Now supports multiple destinations
  */
 export async function extractEntitiesFromMessage(
   message: string,
   context: string = "",
   question: string = ""
-): Promise<ExtractedEntity[]> {
+): Promise<ExtractionResult> {
   try {
-    // Extract location/city from the question if available (needed for both LLM and mock)
-    // Support more patterns: "北京一日游", "去巴黎旅游", "西安行程", "plan a trip to London", "For a 1-day青岛游", etc.
-    const locationPatterns = [
-      // Pattern: "XX一日游", "XX二日游", "XX三日游" (must be at the beginning or after spaces/digits)
-      /(?:^|\s|\d+)([\u4e00-\u9fa5]{2,4})(?:一日游|二日游|三日游)/,
-      // Pattern: "去XX旅游", "在XX游览", "来到XX"
-      /(?:去|在|游览|参观|来到)([\u4e00-\u9fa5]{2,10})(?:旅|旅游|游玩|行程|trip|tour)?/,
-      // Pattern: "XX旅游", "XX游" at start
-      /^([\u4e00-\u9fa5]{2,10})(?:旅|旅游|游)/,
-      // Pattern: "我想XX", "帮我规划XX", "推荐XX"
-      /(?:我想|我想去|帮我规划|推荐)([\u4e00-\u9fa5]{2,10})(?:旅|旅游|游玩|的)?/,
-      // Mixed Chinese-English patterns (e.g., "For a 1-day青岛游")
-      /(?:\d+\s*(?:day|天)\s+)([\u4e00-\u9fa5]{2,10})(?:游|tour|旅|旅游)/i,
-      // Extract Chinese characters from the question (fallback - most greedy, last resort)
-      /([\u4e00-\u9fa5]{2,4})/,
-    ];
+    // Extract multiple destinations from the question (now async with AI filtering)
+    const allDestinations = await extractDestinations(question);
+    console.log("[Entity Extraction] All extracted destinations (after AI filtering):", allDestinations);
 
-    let mainLocation = "";
-    for (const pattern of locationPatterns) {
-      const match = question.match(pattern);
-      if (match && match[1]) {
-        mainLocation = match[1].trim();
-        console.log("[Entity Extraction] Extracted mainLocation using pattern:", pattern.source, "=>", mainLocation);
-        break;
-      }
-    }
+    // Filter out return trip destinations (e.g., "回北京") - only keep actual travel destinations
+    const destinations = allDestinations.filter(d => !d.isReturnTrip);
+    console.log("[Entity Extraction] Filtered destinations (excluding return trips):", destinations);
 
-    console.log("[Entity Extraction] Final mainLocation:", mainLocation);
+    // For backward compatibility, use the first destination as mainLocation
+    const mainLocation = destinations.length > 0 ? destinations[0].location : "";
+    console.log("[Entity Extraction] Final mainLocation (first destination):", mainLocation);
 
     if (apiConfig.useMockApi) {
       // Mock extraction for development
-      console.log("[Entity Extraction] Using MOCK mode, mainLocation:", mainLocation);
-      return mockExtractEntities(message, mainLocation);
+      console.log("[Entity Extraction] Using MOCK mode, destinations:", destinations);
+      return mockExtractEntities(message, destinations);
     }
 
     const systemPrompt = `You are an expert at travel content analysis. Your task is to extract travel-related entities from text.
 
-CURRENT DISCUSSION LOCATION: ${mainLocation ? mainLocation : "Unknown location"}
+**CURRENT DESTINATIONS:** ${destinations.map(d => d.location).join(", ") || "Unknown"}
+**MAIN LOCATION:** ${mainLocation || "Unknown"}
 
 Extract the following types of entities:
 1. Attractions (景点): museums, landmarks, scenic spots, monuments, etc.
@@ -68,21 +264,28 @@ Return ONLY a JSON array in this exact format:
 
 CRITICAL RULES:
 1. **ALWAYS combine location with attractions/food**
-   - If main location is known from the question, ALWAYS use it as a prefix
+   - If a destination is known, ALWAYS use it as a prefix
    - Example: Location="北京" + Message mentions "长城" → Extract: "北京长城景点"
    - Example: Location="巴黎" + Message mentions "铁塔" → Extract: "巴黎埃菲尔铁塔"
    - Example: Location="西安" + Message mentions "美食" → Extract: "西安美食"
 
-2. **NEVER extract single generic words alone**
+2. **Multiple destinations support**
+   - When the user mentions multiple destinations, extract entities for ALL mentioned destinations
+   - If the message mentions entities for different destinations, create separate entries for each
+   - Example: If destinations are ["成都", "重庆"] and message mentions "美食", extract: "成都美食", "重庆美食"
+   - Example: If destinations are ["重庆", "成都", "西安", "北京"], ALWAYS extract entities for ALL destinations: "重庆景点", "成都美食", "西安景点", "北京美食", etc.
+   - CRITICAL: Even if the AI message only mentions one location, you MUST extract entities for ALL known destinations
+
+3. **NEVER extract single generic words alone**
    - ❌ Bad: "长城", "Museum", "Food", "Tower"
    - ✅ Good: "北京长城景点", "北京故宫博物院", "西安美食", "巴黎埃菲尔铁塔"
 
-3. **Identify the main location from context if not provided**
+4. **Identify the main location from context if not provided**
    - Look for city names, place names, or destinations mentioned in the question or message
    - If message mentions specific attraction names (e.g., "东方明珠"), extract the full name: "上海东方明珠"
    - Use pattern matching: [地点] + [景点类型] or [具体景点全名]
 
-4. **Smart entity extraction**
+5. **Smart entity extraction**
    - For attractions: Use format "[地点][景点名称]景点" or full attraction name
      - Examples: "北京故宫博物院", "上海外滩", "西安兵马俑"
    - For food: Use format "[地点][美食类型]美食"
@@ -90,18 +293,18 @@ CRITICAL RULES:
    - For locations: Use the specific location name with "风光" or "旅游" suffix
      - Examples: "杭州西湖风光", "云南丽江旅游"
 
-5. **Language consistency**
+6. **Language consistency**
    - If the message is in Chinese, extract Chinese entity names
    - If the message is in English, extract English entity names
    - Keep location and entity names in the same language
 
-6. **Confidence scoring**
+7. **Confidence scoring**
    - Only extract entities with confidence between 0.6 and 1.0
    - Higher confidence (0.8-1.0) for complete, specific location-entity combinations
    - Lower confidence (0.6-0.7) for generic terms without clear location
 
-7. **Quantity limit**
-   - Return 2-5 most relevant entities maximum
+8. **Quantity limit**
+   - Return 2-8 most relevant entities maximum (increased for multiple destinations)
    - Prioritize quality over quantity
    - If no clear location-entity combinations found, return empty array`;
 
@@ -111,13 +314,17 @@ CRITICAL RULES:
 **Current Message:** "${message}"
 ${context ? `**Conversation Context:** ${context}` : ""}
 
-${mainLocation ? `**IMPORTANT:** The main location is "${mainLocation}". All entities MUST be prefixed with this location unless the entity already includes a specific location.` : ""}
+**Known Destinations:** ${destinations.map(d => `${d.location}${d.duration ? `(${d.duration}天)` : ""}`).join(", ")}
 
 **Extraction Requirements:**
-1. If main location is known, combine it with entities mentioned in the message
-2. Extract complete attraction/food names with their locations
-3. Use appropriate suffixes: "景点" for attractions, "美食" for food, "风光"/"旅游" for locations
-4. Return only high-quality, specific entities that would work well for image search
+1. **CRITICAL: Extract entities for ALL mentioned destinations** - Do not skip any destination
+2. For each destination, extract at least 1-2 entities (attractions and/or food)
+3. If the user mentions a specific destination in their message, prioritize that destination but still include others
+4. Extract complete attraction/food names with their locations
+5. Use appropriate suffixes: "景点" for attractions, "美食" for food, "风光"/"旅游" for locations
+6. Return only high-quality, specific entities that would work well for image search
+
+**Important:** Even if the current AI message only discusses one location, you MUST extract entities for ALL destinations in the trip to provide comprehensive visual context.
 
 Return only the JSON array, no other text.`;
 
@@ -147,7 +354,7 @@ Return only the JSON array, no other text.`;
       console.error("[Entity Extraction] API error:", response.status);
       const errorText = await response.text();
       console.error("[Entity Extraction] Error details:", errorText);
-      return mockExtractEntities(message, mainLocation);
+      return mockExtractEntities(message, destinations);
     }
 
     const data = await response.json();
@@ -160,51 +367,56 @@ Return only the JSON array, no other text.`;
       const parsed = JSON.parse(content);
       if (Array.isArray(parsed)) {
         console.log("[Entity Extraction] Successfully extracted entities:", parsed);
-        return parsed;
+        return {
+          destinations,
+          entities: parsed
+        };
       }
     } catch (parseError) {
       console.error("[Entity Extraction] Failed to parse LLM response:", content);
     }
 
     console.warn("[Entity Extraction] Falling back to mock extraction");
-    return mockExtractEntities(message, mainLocation);
+    return mockExtractEntities(message, destinations);
   } catch (error) {
     console.error("Error in extractEntitiesFromMessage:", error);
-    return mockExtractEntities(message, mainLocation);
+    return mockExtractEntities(message, destinations);
   }
 }
 
 /**
  * Mock entity extraction for development
  * Simple rule-based extraction without hardcoded cities
+ * Now supports multiple destinations
  */
-function mockExtractEntities(message: string, mainLocation: string): ExtractedEntity[] {
-  console.log("[Mock Entity Extraction] Called with:", { message: message.substring(0, 50), mainLocation });
+function mockExtractEntities(message: string, destinations: DestinationInfo[]): ExtractionResult {
+  console.log("[Mock Entity Extraction] Called with:", {
+    message: message.substring(0, 50),
+    destinations: destinations.map(d => d.location)
+  });
   const entities: ExtractedEntity[] = [];
 
-  // Use mainLocation from question if available
-  let location = mainLocation;
+  // If we have destinations, extract entities for each one
+  if (destinations.length > 0) {
+    for (const dest of destinations) {
+      const location = dest.location;
 
-  // If no mainLocation, try to extract from message
-  if (!location) {
-    // Try to extract Chinese location from message (2-4 characters)
-    const chineseLocationMatch = message.match(/([\u4e00-\u9fa5]{2,4})/);
-    if (chineseLocationMatch) {
-      location = chineseLocationMatch[1];
-      console.log("[Mock Entity Extraction] Extracted location from message:", location);
+      // Always add the location itself as an attraction entity
+      entities.push({
+        keyword: `${location}景点`,
+        type: "attraction",
+        confidence: 0.9,
+      });
+      console.log("[Mock Entity Extraction] Added location entity:", `${location}景点`);
+
+      // Add food entity for each destination
+      entities.push({
+        keyword: `${location}美食`,
+        type: "food",
+        confidence: 0.85,
+      });
+      console.log("[Mock Entity Extraction] Added food entity:", `${location}美食`);
     }
-  }
-
-  console.log("[Mock Entity Extraction] Using location:", location);
-
-  // If we have a location, always extract it as an entity
-  if (location) {
-    entities.push({
-      keyword: `${location}景点`,
-      type: "attraction",
-      confidence: 0.9,
-    });
-    console.log("[Mock Entity Extraction] Added location entity:", `${location}景点`);
   }
 
   // Common attraction/food keywords (generic, not location-specific)
@@ -240,60 +452,83 @@ function mockExtractEntities(message: string, mainLocation: string): ExtractedEn
     },
   ];
 
-  // Simple keyword matching with location prefix
+  // Simple keyword matching - combine with all destinations
   for (const { patterns, type, suffixes } of keywordPatterns) {
     for (const pattern of patterns) {
       const matches = message.match(pattern);
       if (matches) {
         const keyword = matches[0];
 
-        // Skip if this is the same as the location (avoid duplicates)
-        if (keyword === location) continue;
+        // For multiple destinations, create entities for each destination
+        if (destinations.length > 0) {
+          // Only create entities if keyword is not already a destination name
+          const isDestinationName = destinations.some(d => d.location === keyword);
+          if (!isDestinationName) {
+            // Create entity for first destination only to avoid duplication
+            const location = destinations[0].location;
+            const fullKeyword = `${location}${keyword}`;
 
-        // Combine with location if available
-        const fullKeyword = location ? `${location}${keyword}` : keyword;
+            // Add suffix for better image search
+            const hasSuffix = /景点|旅游|美食|小吃|风光$/.test(fullKeyword);
+            const finalKeyword = hasSuffix ? fullKeyword : `${fullKeyword}${suffixes[0]}`;
 
-        // Add suffix for better image search (check if already has suffix)
-        const hasSuffix = /景点|旅游|美食|小吃|风光$/.test(fullKeyword);
-        const finalKeyword = hasSuffix ? fullKeyword : `${fullKeyword}${suffixes[0]}`;
+            entities.push({
+              keyword: finalKeyword,
+              type,
+              confidence: 0.8,
+            });
 
-        entities.push({
-          keyword: finalKeyword,
-          type,
-          confidence: location ? 0.8 : 0.6,
-        });
+            console.log("[Mock Entity Extraction] Matched:", { keyword, fullKeyword, finalKeyword });
+          }
+        } else {
+          // No destination, use keyword as-is
+          const hasSuffix = /景点|旅游|美食|小吃|风光$/.test(keyword);
+          const finalKeyword = hasSuffix ? keyword : `${keyword}${suffixes[0]}`;
 
-        console.log("[Mock Entity Extraction] Matched:", { keyword, fullKeyword, finalKeyword });
+          entities.push({
+            keyword: finalKeyword,
+            type,
+            confidence: 0.6,
+          });
+
+          console.log("[Mock Entity Extraction] Matched (no location):", { keyword, finalKeyword });
+        }
       }
     }
   }
 
-  // Remove duplicates and limit to 5
+  // Remove duplicates and limit to 8 (increased for multiple destinations)
   const unique = entities.filter((v, i, a) => a.findIndex(t => t.keyword === v.keyword) === i);
-  const result = unique.slice(0, 5);
+  const result = unique.slice(0, 8);
   console.log("[Mock Entity Extraction] Extracted entities:", result);
-  return result;
+  return {
+    destinations,
+    entities: result
+  };
 }
 
 /**
  * Cache entity extraction results
  */
-const extractionCache = new Map<string, { entities: ExtractedEntity[]; timestamp: number }>();
+const extractionCache = new Map<string, { result: ExtractionResult; timestamp: number }>();
 
 export async function extractEntitiesWithCache(
   message: string,
   context: string = "",
   question: string = ""
-): Promise<ExtractedEntity[]> {
+): Promise<ExtractionResult> {
   const cacheKey = `${message.substring(0, 100)}-${context.substring(0, 50)}-${question.substring(0, 50)}`;
   const cached = extractionCache.get(cacheKey);
 
   if (cached && Date.now() - cached.timestamp < 60000) { // Cache for 1 minute
-    return cached.entities;
+    return cached.result;
   }
 
-  const entities = await extractEntitiesFromMessage(message, context, question);
-  extractionCache.set(cacheKey, { entities, timestamp: Date.now() });
+  const result = await extractEntitiesFromMessage(message, context, question);
+  extractionCache.set(cacheKey, { result, timestamp: Date.now() });
 
-  return entities;
+  return result;
 }
+
+// Export types for use in other modules
+export type { ExtractedEntity, DestinationInfo, ExtractionResult };

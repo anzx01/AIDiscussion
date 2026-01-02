@@ -29,7 +29,9 @@
       "Bash(cmd //c taskkill //F //IM node.exe)",
       "Bash(del:*)",
       "Bash(del \"src\\app\\api\\migrate\\route.ts\")",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(npm run)",
+      "Bash(npx tsx:*)"
     ],
     "deny": [],
     "ask": []

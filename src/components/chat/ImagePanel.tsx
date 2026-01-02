@@ -151,9 +151,6 @@ export function ImagePanel() {
             <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
               随着对话进行自动更新
             </p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
-              使用Bing爬虫免费获取
-            </p>
           </div>
         )}
 
@@ -174,12 +171,9 @@ export function ImagePanel() {
                   style={{ cursor: 'pointer' }}
                 />
                 {/* Source Badge */}
-                <div className="absolute top-2 left-2 flex gap-2">
+                <div className="absolute top-2 left-2">
                   <span className="px-2 py-1 text-xs font-medium bg-black/50 backdrop-blur-sm text-white rounded-full">
                     {image.keyword}
-                  </span>
-                  <span className="px-2 py-1 text-xs font-medium bg-cyan-500/70 backdrop-blur-sm text-white rounded-full">
-                    Bing爬虫
                   </span>
                 </div>
               </div>
@@ -192,9 +186,8 @@ export function ImagePanel() {
 
                 {/* Author/Source */}
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-500 flex items-center gap-1">
-                    <span>来自 Bing 搜索（爬虫）</span>
-                    <span className="text-[10px] bg-cyan-100 text-cyan-700 px-1.5 py-0.5 rounded">免费</span>
+                  <span className="text-xs text-slate-500">
+                    {image.source === 'bing-scraper' ? '来自网络搜索' : image.author || '网络来源'}
                   </span>
                   <span className="text-xs text-slate-400">
                     {new Date(image.timestamp).toLocaleTimeString('en-US', {

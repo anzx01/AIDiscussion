@@ -408,7 +408,7 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
 
       {/* Image Panel - Fixed width on the right */}
       <div className="w-[400px] flex-shrink-0 overflow-hidden">
-        <ImagePanel />
+        <ImagePanel key={sessionId} />
       </div>
     </div>
   );

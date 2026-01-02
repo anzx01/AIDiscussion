@@ -94,15 +94,18 @@ export function ChatContainer({ sessionId, status, onComplete }: ChatContainerPr
               try {
                 console.log("[ChatContainer] Extracting entities from message:", msg.content.substring(0, 100));
                 // Pass the session question for context
-                const entities = await extractEntitiesWithCacheClient(
+                const result = await extractEntitiesWithCacheClient(
                   msg.content,
                   "", // context could be previous messages if needed
                   data.question || "" // Pass the original question
                 );
-                console.log("[ChatContainer] Extracted entities:", entities);
+                console.log("[ChatContainer] Extracted result:", {
+                  destinations: result.destinations.length,
+                  entities: result.entities.length
+                });
 
                 // Dispatch displayImage events for each entity
-                entities.forEach((entity) => {
+                result.entities.forEach((entity) => {
                   if (entity.confidence > 0.6) {
                     // Only show high-confidence entities
                     const entityKey = `${entity.keyword}-${entity.type}`;
