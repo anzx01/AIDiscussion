@@ -23,6 +23,8 @@
 # misc
 .DS_Store
 *.pem
+.claude/
+.claude/*
 
 # debug
 npm-debug.log*
@@ -31,6 +33,7 @@ yarn-error.log*
 
 # env files (can opt-in for commiting if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel

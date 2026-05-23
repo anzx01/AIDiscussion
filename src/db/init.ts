@@ -17,7 +17,7 @@ export async function initializeDatabase() {
       AND column_name = 'duration'
     `);
 
-    if (checkResult.rows.length === 0) {
+    if (checkResult.length === 0) {
       console.log("[DB Init] Adding 'duration' column to planner_session table...");
       await db.execute(sql`
         ALTER TABLE "planner_session"

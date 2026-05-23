@@ -62,7 +62,7 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
     if (isPaused) return; // Don't poll when paused
 
     // Initial fetch
-    const fetchSession = async () => {
+    const fetchSession = async (): Promise<boolean> => {
       try {
         const response = await fetch(`/api/discuss/${sessionId}`);
         const data = await response.json();
@@ -78,7 +78,7 @@ export function ActiveDiscussion({ sessionId, onCompleted }: ActiveDiscussionPro
         // Check pause state
         if (data.isPaused && !isPaused) {
           setIsPaused(true);
-          return;
+          return false;
         }
 
         // Update agent states

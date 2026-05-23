@@ -3,9 +3,21 @@ import { scrapeBingImages } from "@/lib/bing-scraper";
 
 export async function GET(request: NextRequest) {
   try {
+    if (process.env.ENABLE_BING_IMAGE_SCRAPER !== "true") {
+      return NextResponse.json({
+        query: request.nextUrl.searchParams.get("q") || "",
+        count: 0,
+        images: [],
+        disabled: true,
+      });
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get("q");
-    const count = parseInt(searchParams.get("count") || "5", 10);
+    const requestedCount = parseInt(searchParams.get("count") || "5", 10);
+    const count = Number.isFinite(requestedCount)
+      ? Math.min(Math.max(requestedCount, 1), 10)
+      : 5;
 
     if (!query) {
       return NextResponse.json(

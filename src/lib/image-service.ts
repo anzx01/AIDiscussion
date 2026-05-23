@@ -9,13 +9,12 @@ export interface ImageSource {
 }
 
 /**
- * Image search service using Bing Scraper (No API key needed!)
+ * Optional image search service using a server-side metadata fetcher.
  */
 export async function searchImages(
   query: string,
   count: number = 5
 ): Promise<ImageSource[]> {
-  // Use Bing Scraper (No API key needed, best coverage for Chinese content!)
   try {
     // Add random parameter to avoid cached results and get more diverse images
     const randomParam = Math.random().toString(36).substring(7);
@@ -29,7 +28,7 @@ export async function searchImages(
           url: img.url,
           thumbnailUrl: img.thumbnailUrl,
           title: img.title,
-          author: "网络搜索",
+          author: "Search result source",
           authorUrl: img.sourceUrl,
           source: "bing-scraper" as const,
         }));

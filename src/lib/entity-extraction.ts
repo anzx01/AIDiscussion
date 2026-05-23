@@ -146,7 +146,7 @@ export async function extractDestinations(question: string): Promise<Destination
   for (const pattern of patterns) {
     const matches = question.matchAll(pattern);
     for (const match of matches) {
-      let location: string;
+      let location = "";
       let duration: number | undefined;
 
       // Check which pattern matched and extract accordingly
@@ -227,13 +227,15 @@ export async function extractEntitiesFromMessage(
   context: string = "",
   question: string = ""
 ): Promise<ExtractionResult> {
+  let destinations: DestinationInfo[] = [];
+
   try {
     // Extract multiple destinations from the question (now async with AI filtering)
     const allDestinations = await extractDestinations(question);
     console.log("[Entity Extraction] All extracted destinations (after AI filtering):", allDestinations);
 
     // Filter out return trip destinations (e.g., "回北京") - only keep actual travel destinations
-    const destinations = allDestinations.filter(d => !d.isReturnTrip);
+    destinations = allDestinations.filter(d => !d.isReturnTrip);
     console.log("[Entity Extraction] Filtered destinations (excluding return trips):", destinations);
 
     // For backward compatibility, use the first destination as mainLocation
@@ -331,7 +333,6 @@ Return only the JSON array, no other text.`;
     // Use DeepSeek API for entity extraction (simpler authentication)
     console.log("[Entity Extraction] Calling DeepSeek API with mainLocation:", mainLocation);
     console.log("[Entity Extraction] API Key exists:", !!apiConfig.deepseek.apiKey);
-    console.log("[Entity Extraction] API Key prefix:", apiConfig.deepseek.apiKey?.substring(0, 15));
 
     const response = await fetch(`${apiConfig.deepseek.baseUrl}/chat/completions`, {
       method: "POST",

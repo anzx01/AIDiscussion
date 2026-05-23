@@ -5,15 +5,7 @@ interface ScrapedImage {
   sourceUrl: string;
 }
 
-// User-Agent pool for rotation
-const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
-];
+const USER_AGENT = "AIDiscussion/0.1 image-metadata-fetcher";
 
 // Request cache to avoid duplicate requests
 const requestCache = new Map<string, { data: ScrapedImage[]; timestamp: number }>();
@@ -22,25 +14,6 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 // Rate limiting: track last request time
 let lastRequestTime = 0;
 const MIN_REQUEST_INTERVAL = 2000; // 2 seconds between requests
-
-// Random delay range (ms)
-const MIN_DELAY = 1000;
-const MAX_DELAY = 3000;
-
-/**
- * Get a random User-Agent from the pool
- */
-function getRandomUserAgent(): string {
-  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
-}
-
-/**
- * Add random delay to avoid detection
- */
-function randomDelay(): Promise<void> {
-  const delay = Math.floor(Math.random() * (MAX_DELAY - MIN_DELAY + 1)) + MIN_DELAY;
-  return new Promise(resolve => setTimeout(resolve, delay));
-}
 
 /**
  * Rate limiting check
@@ -86,8 +59,9 @@ function setCachedResults(query: string, data: ScrapedImage[]): void {
 }
 
 /**
- * Scrape Bing Images search results with anti-scraping protections
- * Note: For educational purposes only, may violate Bing's Terms of Service
+ * Fetch Bing Images search result metadata.
+ * Keep this feature disabled unless your deployment has confirmed that its use
+ * complies with the target service terms and image owners' rights.
  */
 export async function scrapeBingImages(
   query: string,
@@ -105,16 +79,13 @@ export async function scrapeBingImages(
     // Enforce rate limiting
     await enforceRateLimit();
 
-    // Add random delay
-    await randomDelay();
-
     // Build the search URL - use the regular images search page
     const searchUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&count=${count}&first=0&mmasync=1`;
 
-    // Fetch the HTML with randomized headers
+    // Fetch the HTML with a transparent application User-Agent.
     const response = await fetch(searchUrl, {
       headers: {
-        'User-Agent': getRandomUserAgent(),
+        'User-Agent': USER_AGENT,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
         'Accept-Encoding': 'gzip, deflate, br',

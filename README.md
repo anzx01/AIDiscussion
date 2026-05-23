@@ -49,9 +49,9 @@
 
 - **🖼️ 智能图片展示**
   - 自动识别对话中的景点、美食、地点
-  - 使用Bing爬虫实时搜索相关图片
+  - 可选启用 Bing 图片元数据获取
   - **双重去重机制** - 关键词时间窗口 + 图片URL去重
-  - 内置反爬保护机制（请求限流、UA轮换、智能缓存）
+  - 可选图片元数据获取（默认关闭，请求限流、智能缓存）
   - 右侧独立图片面板，不影响对话浏览
 
 - **⏸️ 暂停/继续功能**
@@ -132,12 +132,12 @@ Planner → 综合考虑Round 1和Round 2的所有观点
 
 然后通过Bing图片搜索获取相关图片，并在右侧面板展示。
 
-**反爬保护机制**:
-- User-Agent池轮换（6种真实浏览器UA）
+**外部图片服务使用约束**:
+- 图片元数据获取默认关闭
+- 启用前请确认目标服务条款和图片权利
 - 请求频率限制（最小间隔2秒）
-- 随机延迟（1-3秒）
 - 智能缓存（5分钟有效期）
-- 完整浏览器请求头模拟
+- 使用透明应用 User-Agent
 
 ### 3. 用户交互功能
 
@@ -169,8 +169,8 @@ Planner → 综合考虑Round 1和Round 2的所有观点
 - **DeepSeek**: DeepSeek-chat (预算优化), DeepSeek用于实体提取
 
 ### 图片服务
-- **Bing图片爬虫**: 无需API Key，支持中文内容
-- **反爬保护**: 请求限流、UA轮换、智能缓存
+- **Bing图片元数据获取**: 默认关闭，启用前请确认目标服务条款
+- **请求保护**: 请求限流、透明 User-Agent、智能缓存
 
 ---
 
@@ -201,7 +201,7 @@ src/
 │       │       └── pin/
 │       │           └── route.ts              # POST 置顶/取消置顶
 │       ├── scrape-images/
-│       │   └── route.ts                      # GET Bing图片爬虫
+│       │   └── route.ts                      # GET 可选图片元数据
 │       ├── extract-entities/
 │       │   └── route.ts                      # POST 实体提取API
 │       ├── auth/[...all]/route.ts            # Better Auth
@@ -245,7 +245,7 @@ src/
 │   ├── entity-extraction.ts                  # 实体提取逻辑
 │   ├── client-api.ts                         # 客户端API调用
 │   ├── image-service.ts                      # 图片搜索服务
-│   ├── bing-scraper.ts                       # Bing爬虫（带反爬）
+│   ├── bing-scraper.ts                       # 可选 Bing 图片元数据获取
 │   └── utils.ts                              # 工具函数
 │
 └── providers/
@@ -433,7 +433,8 @@ OPENAI_BASE_URL="https://open.bigmodel.cn/api/paas/v4"
 ZHIPU_API_KEY="your-zhipu-api-key"
 
 # DeepSeek（用于BudgetAdvisor和实体提取）
-DEEPSEEK_API_KEY="sk-xxxxxxxx"
+DEEPSEEK_API_KEY="sk-REPLACE_WITH_YOUR_DEEPSEEK_KEY"
+ENABLE_BING_IMAGE_SCRAPER="false"
 DEEPSEEK_BASE_URL="https://api.deepseek.com/v1"
 
 # ==================== 功能开关 ====================
@@ -467,7 +468,7 @@ BUDGET_ADVISOR_MODEL="deepseek-chat"
 2. 注册账号
 3. 进入"API Keys"页面
 4. 创建新的API Key
-5. 复制Key，格式如：`sk-c6c462061f0f48dbbf47a52ee1c1110b`
+5. 复制Key，格式如：`sk-REPLACE_WITH_YOUR_DEEPSEEK_KEY`
 
 #### 3. Supabase数据库
 1. 访问 [https://supabase.com](https://supabase.com)
@@ -734,7 +735,7 @@ npm run db:studio
 ### 图片服务
 
 #### GET `/api/scrape-images`
-Bing图片爬虫（带反爬保护）。
+Bing 图片元数据获取功能。该功能默认关闭；启用前请确认目标服务条款和图片权利。
 
 **查询参数**:
 - `q`: 搜索关键词（必需）
@@ -847,8 +848,8 @@ Better Auth处理的所有认证请求。
    - 添加合适后缀（景点/美食/风光）
    ↓
 5. 调用图片搜索API (/api/scrape-images)
-   - 使用Bing爬虫搜索
-   - 应用反爬保护（限流、延迟、缓存）
+   - 使用 Bing 图片元数据获取
+   - 应用请求限流和缓存
    ↓
 6. ImagePanel显示图片
    - 保持最多10张图片
@@ -856,15 +857,14 @@ Better Auth处理的所有认证请求。
    - 显示关键词和来源
 ```
 
-### 反爬保护机制
+### 外部图片服务使用约束
 
-**Bing爬虫包含以下保护措施**：
+**可选图片元数据获取包含以下保护措施**：
 
-1. **User-Agent轮换**: 6种真实浏览器UA随机选择
+1. **透明 User-Agent**: 使用应用标识发起请求
 2. **请求频率限制**: 最小间隔2秒
-3. **随机延迟**: 每次请求前1-3秒随机延迟
-4. **智能缓存**: 5分钟缓存，避免重复请求
-5. **完整请求头**: 模拟真实浏览器请求
+3. **智能缓存**: 5分钟缓存，避免重复请求
+4. **透明请求头**: 使用应用 User-Agent
 
 **配置位置**: `src/lib/bing-scraper.ts`
 
@@ -939,7 +939,7 @@ cat .env | grep USE_MOCK_API
 
 # 查看详细日志
 # [Entity Extraction] API Key exists: true
-# [Entity Extraction] API Key prefix: sk-c6c462061f0f
+# [Entity Extraction] API key configured: true
 ```
 
 ### 5. 图片不显示
@@ -960,7 +960,7 @@ cat .env | grep USE_MOCK_API
 # 如果没有图片，可能是：
 # 1. Bing返回的HTML格式变化（需要更新正则表达式）
 # 2. 关键词没有结果（尝试其他关键词）
-# 3. 被反爬拦截（增加延迟时间）
+# 3. 目标服务不可用或使用条款限制
 ```
 
 ### 6. 编译错误
@@ -1090,7 +1090,7 @@ export const ROUND2_PROMPT = `...`;
 export const ROUND3_PROMPT = `...`;
 ```
 
-### 调整反爬参数
+### 调整图片获取参数
 
 编辑 `src/lib/bing-scraper.ts`:
 
@@ -1190,6 +1190,13 @@ const CACHE_DURATION = 5 * 60 * 1000;  // 缓存时长
 - ✅ 添加配置检查工具 (`/api/check-config`)
 
 ---
+
+## 合规与隐私
+
+- 发布前请阅读 [COMPLIANCE.md](./COMPLIANCE.md)
+- 第三方依赖和素材说明见 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md)
+- 隐私说明见 [PRIVACY.md](./PRIVACY.md)
+- 安全报告和密钥处理见 [SECURITY.md](./SECURITY.md)
 
 ## 许可证
 

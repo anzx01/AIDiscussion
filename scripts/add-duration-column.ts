@@ -13,7 +13,7 @@ async function addDurationColumn() {
       AND column_name = 'duration'
     `);
 
-    if (checkResult.rows.length > 0) {
+    if (checkResult.length > 0) {
       console.log("Column 'duration' already exists. Skipping migration.");
       return;
     }

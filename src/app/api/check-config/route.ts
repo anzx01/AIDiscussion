@@ -6,12 +6,10 @@ export async function GET() {
     mode: apiConfig.useMockApi ? "MOCK" : "REAL API",
     zhipu: {
       configured: !!apiConfig.zhipu.apiKey,
-      keyPrefix: apiConfig.zhipu.apiKey ? apiConfig.zhipu.apiKey.substring(0, 10) + "..." : "NOT SET",
       baseUrl: apiConfig.zhipu.baseUrl,
     },
     deepseek: {
       configured: !!apiConfig.deepseek.apiKey,
-      keyPrefix: apiConfig.deepseek.apiKey ? apiConfig.deepseek.apiKey.substring(0, 10) + "..." : "NOT SET",
       baseUrl: apiConfig.deepseek.baseUrl,
     },
     warnings: [] as string[],

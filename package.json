@@ -1,7 +1,11 @@
 {
-  "name": "nextjs-15",
+  "name": "ai-discussion",
   "version": "0.1.0",
   "private": true,
+  "description": "Multi-agent AI travel discussion planner built with Next.js.",
+  "license": "MIT",
+  "author": "Jabir Developer",
+  "packageManager": "pnpm@10.19.0",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
