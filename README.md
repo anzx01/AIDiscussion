@@ -364,7 +364,7 @@ email_capture (N)
 
 ```bash
 git clone <repository-url>
-cd nk
+cd ai-discussion
 ```
 
 ### 2. 安装依赖
@@ -1052,6 +1052,8 @@ CMD ["npm", "start"]
 
 ---
 
+---
+
 ## 开发指南
 
 ### 添加新的AI Agent
@@ -1206,7 +1208,26 @@ MIT
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request！
+我们欢迎所有形式的贡献！无论是报告 bug、建议功能、修复代码还是改进文档，您的帮助都很宝贵。
+
+在参与本项目前，请先阅读我们的 [行为准则](./CODE_OF_CONDUCT.md) 和 [贡献指南](./CONTRIBUTING.md)。
+
+### 快速开始
+
+1. **Fork** 本仓库
+2. **创建功能分支** (`git checkout -b feature/amazing-feature`)
+3. **提交更改** (`git commit -m 'Add amazing feature'`)
+4. **推送到分支** (`git push origin feature/amazing-feature`)
+5. **开启 Pull Request**
+
+### 贡献类型
+
+- **Bug 报告**: 使用详细的重现步骤和环境信息
+- **功能建议**: 描述用例和为什么这个功能对你很重要
+- **代码改进**: 遵循代码风格，添加测试和文档
+- **文档完善**: 修复typo、补充说明或完善指南
+
+更多详见 [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ---
 

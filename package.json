@@ -1,11 +1,29 @@
 {
   "name": "ai-discussion",
-  "version": "0.1.0",
+  "version": "5.0.0",
   "private": true,
   "description": "Multi-agent AI travel discussion planner built with Next.js.",
   "license": "MIT",
   "author": "Jabir Developer",
   "packageManager": "pnpm@10.19.0",
+  "keywords": [
+    "ai",
+    "travel-planning",
+    "multi-agent",
+    "next.js",
+    "typescript",
+    "openai",
+    "deepseek",
+    "zhipu"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/ai-discussion.git"
+  },
+  "homepage": "https://github.com/YOUR_USERNAME/ai-discussion",
+  "bugs": {
+    "url": "https://github.com/YOUR_USERNAME/ai-discussion/issues"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
@@ -51,5 +69,9 @@
     "prettier-plugin-tailwindcss": "^0.7.1",
     "tailwindcss": "^4.1.16",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18.17.0",
+    "pnpm": ">=10.0.0"
   }
 }

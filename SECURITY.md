@@ -1,20 +1,225 @@
-# Security Policy
+# 安全政策
 
-## Supported Versions
+## 支持的版本
 
-This project is pre-1.0. Security fixes are handled on the default branch.
+本项目正在积极开发中。安全修复将在默认分支上进行处理。
 
-## Reporting
+| 版本   | 状态       |
+| ------ | ---------- |
+| 5.0.x  | 支持中 ✅   |
+| < 5.0  | 不支持 ❌   |
 
-Do not open a public issue for secrets, account takeover paths, or data exposure
-bugs. Report security concerns privately to the project maintainer and include:
+## 安全问题报告
 
-- A short impact summary.
-- Reproduction steps.
-- Affected routes, files, or dependencies.
+### ⚠️ 重要：勿在公开议题中报告安全漏洞
 
-## Secret Handling
+如果你发现了安全问题，**请勿在 GitHub Issues 中公开报告**。
 
-Never commit real `.env` files, database URLs, API keys, provider tokens, or
-private keys. Rotate any credential that may have been committed or exposed in
-logs.
+### 私密报告流程
+
+1. **发现问题**: 如果发现可能的安全问题，请收集以下信息：
+   - 问题的简短影响摘要
+   - 详细的重现步骤
+   - 受影响的代码路径、文件或依赖项
+   - 建议的修复方案（如有）
+
+2. **报告方式**: 
+   - 创建 GitHub Security Advisory（私密）
+   - 或发送详细信息至项目维护者
+   - 在邮件主题中标明 `[SECURITY]`
+
+3. **期望的回应时间**:
+   - 确认收到: 1-2 个工作日
+   - 初步评估: 3-5 个工作日
+   - 修复和补丁: 7-14 个工作日（取决于严重程度）
+
+## 密钥和凭证处理
+
+### 永远不要做以下事情
+
+❌ **禁止提交**:
+- 真实的 `.env` 文件
+- 数据库 URL 和凭证
+- API 密钥和令牌
+- SSH 私钥或证书
+- 提供商认证令牌
+
+❌ **禁止硬编码**:
+- API 密钥
+- 数据库密码
+- 认证令牌
+- 任何敏感配置
+
+### 如果意外泄露了凭证
+
+**立即采取行动**:
+
+1. **本地修复**:
+   ```bash
+   # 从 staging area 移除文件
+   git reset HEAD .env
+   
+   # 更新 .gitignore（如果需要）
+   echo ".env" >> .gitignore
+   
+   # 提交修复
+   git add .gitignore
+   git commit -m "Remove accidentally committed secrets"
+   ```
+
+2. **清理历史**（如果已推送）:
+   ```bash
+   # 使用 git filter-branch 或 BFG Repo-Cleaner
+   git filter-branch --tree-filter 'rm -f .env' HEAD
+   
+   # 强制推送（谨慎！）
+   git push --force-with-lease
+   ```
+
+3. **轮换凭证**:
+   - 在 API 提供商控制面板中生成新密钥
+   - 更新所有部署环境中的密钥
+   - 通知所有与凭证有关的合作者
+
+4. **验证修复**:
+   ```bash
+   # 检查历史中是否仍存在泄露的密钥
+   git log --all --full-history -- .env
+   
+   # 搜索敏感字符串
+   git grep -i "sk-\|api.key\|password" HEAD
+   ```
+
+## 依赖项安全
+
+### 定期检查
+
+```bash
+# 检查依赖项中的已知漏洞
+pnpm audit
+
+# 更新依赖项（安全版本）
+pnpm update
+
+# 查看详细的审计报告
+pnpm audit --json
+```
+
+### 易受攻击的依赖项处理
+
+如果发现易受攻击的依赖项：
+
+1. **检查更新**: 运行 `pnpm audit` 获取修复建议
+2. **更新依赖**: `pnpm update package-name@latest`
+3. **测试**: 运行完整的构建和测试
+4. **报告**: 如果没有修复版本，联系维护者
+
+## 部署安全检查清单
+
+部署前，确保：
+
+- [ ] **环境变量**: 所有生产密钥都在平台的秘密管理中，而非代码中
+- [ ] **数据库**:
+  - [ ] 启用强密码认证
+  - [ ] 使用 TLS/SSL 加密连接
+  - [ ] 限制网络访问（IP 白名单）
+  - [ ] 启用审计日志
+  
+- [ ] **应用安全**:
+  - [ ] 运行 `pnpm audit` 检查依赖项
+  - [ ] 使用安全的 CORS 配置
+  - [ ] 启用 HTTPS
+  - [ ] 设置强安全头
+  - [ ] 配置 Content Security Policy (CSP)
+
+- [ ] **认证**:
+  - [ ] Better Auth 的 `BETTER_AUTH_SECRET` 是强密钥（32+ 字符）
+  - [ ] 启用会话超时
+  - [ ] 使用安全的 Cookie 标志
+
+- [ ] **数据保护**（如涉及用户数据）:
+  - [ ] 启用数据库加密（静态）
+  - [ ] 使用 TLS 加密传输中的数据
+  - [ ] 定期备份
+  - [ ] 实施访问控制和日志
+
+- [ ] **第三方服务**:
+  - [ ] 验证 Bing 图片搜索功能默认禁用
+  - [ ] 检查所有 API 调用使用 HTTPS
+  - [ ] 验证 API 密钥权限限制为最小必需
+
+## 已知安全考虑
+
+### 数据处理
+
+⚠️ **重要**: 本项目可能处理以下敏感信息：
+- 用户输入的旅行信息
+- 生成的 AI 讨论内容
+- 第三方 AI 服务的交互
+
+**部署时需要**:
+- 符合适用的数据保护法规（GDPR、PIPL 等）
+- 明确的数据处理政策
+- 用户同意机制
+
+### 第三方服务
+
+当使用以下服务时，请留意：
+
+1. **智谱 AI / DeepSeek**:
+   - 确保您的使用符合其服务条款
+   - 验证数据保留和隐私政策
+   - 定期审计 API 日志
+
+2. **Bing 图片搜索**（可选）:
+   - 默认禁用，仅在明确启用时使用
+   - 遵守 Bing 和图片所有者的使用条款
+   - 考虑用户隐私影响
+
+3. **Supabase / PostgreSQL**:
+   - 启用数据库加密
+   - 使用强认证凭证
+   - 定期备份
+
+## 安全最佳实践
+
+### 代码审查
+
+所有变更都应经过审查，特别是涉及：
+- 认证和授权
+- 数据访问和处理
+- 加密和密钥管理
+- 外部 API 调用
+
+### 日志和监控
+
+- 记录所有认证尝试
+- 监控异常数据访问
+- 追踪 API 错误和异常
+- **注意**: 勿在日志中记录敏感信息（密钥、密码等）
+
+### 定期更新
+
+- 每月检查一次依赖项更新
+- 及时应用安全补丁
+- 测试更新后的应用
+
+## 漏洞奖励
+
+目前本项目不提供官方的漏洞奖励计划，但我们重视安全研究人员的贡献。如果你发现并报告了严重的安全问题，我们会在发布修复时感谢你。
+
+## 联系方式
+
+- **私密安全问题**: GitHub Security Advisory 或直接联系维护者
+- **其他问题**: 提交 GitHub Issues
+- **讨论**: 使用 GitHub Discussions
+
+---
+
+## 更新日志
+
+### 版本 5.0.0+
+- ✅ 改进密钥处理指南
+- ✅ 添加部署安全检查清单
+- ✅ 完善数据保护说明
+

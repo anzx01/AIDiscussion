@@ -1,34 +1,82 @@
-# Privacy Notes
+# 隐私政策
 
-This project is source code for a self-hosted application. The repository does
-not provide a hosted privacy policy for your deployment.
+该项目是一个自托管应用程序的源代码。本仓库不为你的部署提供托管隐私政策。
 
-## Data The App Can Store
+## 应用可能存储的数据
 
-Depending on enabled features and database configuration, the app can store:
+根据启用的功能和数据库配置，应用可能存储以下数据：
 
-- User travel prompts, preferences, generated discussion messages, and session
-  metadata.
-- Optional email addresses submitted through the email capture endpoint.
-- Analytics event names, session IDs, and optional event metadata.
-- Authentication users, sessions, accounts, verification records, and provider
-  tokens managed by Better Auth.
+- **用户输入**: 旅行提示、偏好设置、生成的讨论消息和会话元数据
+- **邮箱地址**: 通过邮箱捕获端点提交的可选邮箱（如果启用）
+- **分析事件**: 事件名称、会话 ID 和可选的事件元数据
+- **认证信息**: Better Auth 管理的用户账户、会话、认证记录和提供商令牌
 
-## Third-Party Processing
+## 第三方数据处理
 
-When real API mode is enabled, prompts and generated context may be sent to the
-configured AI providers, including Zhipu-compatible endpoints and DeepSeek.
-Operators are responsible for making sure their provider configuration,
-retention settings, and user disclosures match their deployment.
+启用真实 API 模式时，用户提示和生成的内容可能会被发送至配置的 AI 服务提供商，包括：
 
-## Operator Responsibilities
+- **智谱 AI** (Zhipu AI): 用于行程规划和分析
+- **DeepSeek**: 用于预算建议和实体提取
+- **Bing 图片搜索**: 用于获取旅行相关的图片（可选，默认关闭）
 
-Before publishing or deploying this project, add a deployment-specific privacy
-policy that explains:
+操作者需要确保：
+- 提供商配置与用户的数据保护要求相符
+- 提供商的数据保留政策符合法律要求
+- 向用户明确披露第三方数据处理情况
 
-- What data is collected and why.
-- Which AI, database, analytics, email, and hosting providers process data.
-- How users can request export or deletion of their data.
-- Retention periods and security controls.
+## 运营者责任
 
-Do not commit real `.env` files or production secrets.
+在发布或部署此项目前，**必须添加特定于你部署的隐私政策**，说明：
+
+### 数据收集与使用
+- 收集了哪些数据以及为什么
+- 如何使用这些数据
+- 数据保留期限
+
+### 第三方处理
+- 哪些 AI 提供商处理用户数据
+  - 是否使用中国大陆 IP？
+  - 是否涉及跨境数据传输？
+  - 各提供商的数据保留政策
+- 数据库托管位置及安全措施
+- 分析平台及其数据处理方式
+
+### 用户权利
+- 用户如何请求导出其数据
+- 用户如何请求删除其数据
+- 数据访问、修正和删除的流程
+- 投诉处理流程
+
+### 安全措施
+- 数据加密方式（传输和存储）
+- 访问控制措施
+- 身份验证机制
+
+## 重要提醒
+
+- **勿提交真实环境文件**: 永远不要提交包含真实凭证的 `.env` 文件
+- **凭证轮换**: 如果任何凭证曾被提交或暴露，立即轮换
+- **服务条款**: 在启用任何外部服务（如 Bing 图片搜索）前，确保你的使用符合其服务条款
+- **数据合规**: 如涉及欧盟用户，需符合 GDPR 要求；如涉及中国用户，需符合相关数据保护法规
+
+## 最佳实践
+
+1. **部署前检查清单**
+   - [ ] 确认数据库在符合要求的地区
+   - [ ] 验证所有第三方服务的服务条款
+   - [ ] 准备符合当地法律的隐私政策
+   - [ ] 配置数据加密和访问控制
+   - [ ] 设置备份和灾难恢复计划
+
+2. **运维期间**
+   - [ ] 定期审计访问日志
+   - [ ] 及时处理用户的数据访问请求
+   - [ ] 监控第三方服务的变更
+   - [ ] 定期更新隐私政策以反映实际做法
+
+3. **安全考虑**
+   - 使用强认证机制（Better Auth）
+   - 在传输层启用 TLS/SSL
+   - 对敏感数据进行数据库级加密
+   - 限制对 API 密钥和数据库凭证的访问
+
