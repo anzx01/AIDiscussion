@@ -4,6 +4,8 @@
 
 一个生产就绪的 Web 应用，通过多个 AI 专家角色的讨论，为全球任意目的地提供灵活时长的旅行规划。系统会根据用户需求智能推荐旅行天数，支持实时聊天、智能图片显示、多轮讨论等高级功能。
 
+![1779608495621](image/README/1779608495621.png)
+
 ## 📋 目录
 
 - [项目概述](#项目概述)
@@ -30,42 +32,43 @@
 ### ✨ 主要特性
 
 - **🤖 三角色AI讨论系统**
+
   - **Planner (规划师)**: 使用智谱 GLM-4-flash，负责行程结构设计和整体规划
   - **Reality Checker (现实检查员)**: 使用智谱 GLM-4-plus，关注时间可行性、人流、实际约束
   - **Budget Advisor (预算顾问)**: 使用 DeepSeek-chat，关注成本效益和性价比
-
 - **📅 智能天数推荐**
+
   - 根据用户输入自动识别旅行天数（如"成都3天"）
   - 未指定天数时，AI智能推荐（基于目的地数量、节奏偏好）
   - 支持单目的地或多目的地分段规划
   - 动态生成Day 1到Day N的详细行程
-
 - **💬 微信风格聊天界面**
+
   - 按时间顺序显示所有发言
   - 支持消息引用/回复功能
   - 不同AI角色使用不同颜色气泡区分
   - 实时进度显示和自动滚动
   - **讨论完成后可继续对话** - 支持多轮交互
-
 - **🖼️ 智能图片展示**
+
   - 自动识别对话中的景点、美食、地点
   - 可选启用 Bing 图片元数据获取
   - **双重去重机制** - 关键词时间窗口 + 图片URL去重
   - 可选图片元数据获取（默认关闭，请求限流、智能缓存）
   - 右侧独立图片面板，不影响对话浏览
-
 - **⏸️ 暂停/继续功能**
+
   - 可随时暂停AI讨论
   - 支持发送用户消息参与讨论
   - 默认选中所有AI模型，可灵活调整
-
 - **📌 会话管理**
+
   - 会话置顶功能
   - 会话重命名
   - 历史会话查看
   - 会话状态实时跟踪
-
 - **⚡ 性能优化**
+
   - 智能轮询机制（2秒间隔，减少服务器负载）
   - 完善的错误处理和用户提示
   - 异步消息处理，不阻塞用户操作
@@ -77,6 +80,7 @@
 ### 1. 多智能体讨论流程
 
 #### 天数智能推荐
+
 在开始讨论前，系统会智能确定旅行天数：
 
 - **用户明确指定**：如"成都3天" → 使用3天
@@ -87,6 +91,7 @@
   - 慢节奏：3天/城市
 
 #### Round 1: 独立提案阶段
+
 3个AI角色各自基于目的地和天数生成完整的旅行方案，互不干扰：
 
 ```
@@ -96,6 +101,7 @@ Budget Advisor → 生成高性价比的预算友好方案
 ```
 
 #### Round 2: 互相批评阶段
+
 每个AI审视其他角色的提案，指出问题和改进建议：
 
 ```
@@ -104,9 +110,10 @@ Reality Checker → 批评 Planner 和 Budget Advisor 的提案（时间不现�
 Budget Advisor → 批评 Planner 和 Reality Checker 的提案（超出预算/资源浪费）
 ```
 
-**关键设计**: Round 2的每条消息会通过`reply_to_id`引用Round 1中该AI自己的提案，便于理解批评背景。
+**关键设计**: Round 2的每条消息会通过 `reply_to_id`引用Round 1中该AI自己的提案，便于理解批评背景。
 
 #### Round 3: 最终综合阶段
+
 Planner汇总所有讨论观点，生成最终推荐：
 
 ```
@@ -117,7 +124,9 @@ Planner → 综合考虑Round 1和Round 2的所有观点
 ```
 
 #### 后续对话
+
 讨论完成后，用户可以继续发送消息：
+
 - 提出修改建议："可以调整一下吗？"
 - 询问细节："这个预算可以优化吗"
 - AI会实时回复，支持多轮交互
@@ -133,6 +142,7 @@ Planner → 综合考虑Round 1和Round 2的所有观点
 然后通过Bing图片搜索获取相关图片，并在右侧面板展示。
 
 **外部图片服务使用约束**:
+
 - 图片元数据获取默认关闭
 - 启用前请确认目标服务条款和图片权利
 - 请求频率限制（最小间隔2秒）
@@ -152,6 +162,7 @@ Planner → 综合考虑Round 1和Round 2的所有观点
 ## 技术栈
 
 ### 前端
+
 - **框架**: Next.js 16.1.1 (App Router + Turbopack)
 - **UI库**: TailwindCSS 4.1, Radix UI, shadcn/ui
 - **语言**: TypeScript 5
@@ -159,16 +170,19 @@ Planner → 综合考虑Round 1和Round 2的所有观点
 - **样式方案**: TailwindCSS + CSS Modules
 
 ### 后端
+
 - **API路由**: Next.js API Routes (App Router)
 - **ORM**: Drizzle ORM 0.44.7
 - **数据库**: PostgreSQL (Supabase)
 - **认证**: Better Auth 1.3.32
 
 ### AI服务
+
 - **智谱AI**: GLM-4-flash (快速规划), GLM-4-plus (深度分析)
 - **DeepSeek**: DeepSeek-chat (预算优化), DeepSeek用于实体提取
 
 ### 图片服务
+
 - **Bing图片元数据获取**: 默认关闭，启用前请确认目标服务条款
 - **请求保护**: 请求限流、透明 User-Agent、智能缓存
 
@@ -303,6 +317,7 @@ src/
 ```
 
 **索引**:
+
 ```sql
 CREATE INDEX idx_messages_session_round
   ON discussion_messages(sessionId, round, createdAt);
@@ -457,6 +472,7 @@ BUDGET_ADVISOR_MODEL="deepseek-chat"
 ### 获取API密钥
 
 #### 1. 智谱AI API
+
 1. 访问 [https://open.bigmodel.cn/](https://open.bigmodel.cn/)
 2. 注册账号并实名认证
 3. 进入"API Keys"页面
@@ -464,6 +480,7 @@ BUDGET_ADVISOR_MODEL="deepseek-chat"
 5. 复制Key，格式如：`0534b191400e4b7a8ab8689092988c21.jIVA9yPMMf0mxpoY`
 
 #### 2. DeepSeek API
+
 1. 访问 [https://platform.deepseek.com/](https://platform.deepseek.com/)
 2. 注册账号
 3. 进入"API Keys"页面
@@ -471,6 +488,7 @@ BUDGET_ADVISOR_MODEL="deepseek-chat"
 5. 复制Key，格式如：`sk-REPLACE_WITH_YOUR_DEEPSEEK_KEY`
 
 #### 3. Supabase数据库
+
 1. 访问 [https://supabase.com](https://supabase.com)
 2. 创建新项目
 3. 进入Project Settings > Database
@@ -595,6 +613,7 @@ npm run db:studio
 ```
 
 预期输出：
+
 ```
           List of relations
  Schema |         Name          | Type  |  Owner
@@ -616,9 +635,11 @@ npm run db:studio
 ### 讨论相关
 
 #### POST `/api/discuss`
+
 创建新的讨论会话。
 
 **请求体**:
+
 ```json
 {
   "question": "Plan a 2-day trip to Paris",
@@ -629,6 +650,7 @@ npm run db:studio
 ```
 
 **响应**:
+
 ```json
 {
   "sessionId": "uuid",
@@ -638,9 +660,11 @@ npm run db:studio
 ```
 
 #### GET `/api/discuss/[sessionId]`
+
 获取会话信息和所有消息。
 
 **响应**:
+
 ```json
 {
   "id": "uuid",
@@ -664,9 +688,11 @@ npm run db:studio
 ```
 
 #### POST `/api/discuss/[sessionId]/pause`
+
 暂停或继续讨论。
 
 **请求体**:
+
 ```json
 {
   "action": "pause"  // 或 "resume"
@@ -674,9 +700,11 @@ npm run db:studio
 ```
 
 #### POST `/api/discuss/[sessionId]/message`
+
 发送用户消息参与讨论。
 
 **请求体**:
+
 ```json
 {
   "message": "I'd like to visit more museums",
@@ -685,9 +713,11 @@ npm run db:studio
 ```
 
 #### POST `/api/discuss/[sessionId]/continue`
+
 继续已完成的讨论。
 
 **请求体**:
+
 ```json
 {
   "selectedAgents": ["planner", "realityChecker", "budgetAdvisor"]
@@ -697,9 +727,11 @@ npm run db:studio
 ### 会话管理
 
 #### GET `/api/sessions`
+
 获取所有会话列表。
 
 **响应**:
+
 ```json
 {
   "sessions": [
@@ -717,9 +749,11 @@ npm run db:studio
 ```
 
 #### PATCH `/api/sessions/[sessionId]`
+
 更新会话标题。
 
 **请求体**:
+
 ```json
 {
   "title": "New Title"
@@ -727,26 +761,32 @@ npm run db:studio
 ```
 
 #### DELETE `/api/sessions/[sessionId]`
+
 删除会话。
 
 #### POST `/api/sessions/[sessionId]/pin`
+
 置顶或取消置顶会话。
 
 ### 图片服务
 
 #### GET `/api/scrape-images`
+
 Bing 图片元数据获取功能。该功能默认关闭；启用前请确认目标服务条款和图片权利。
 
 **查询参数**:
+
 - `q`: 搜索关键词（必需）
 - `count`: 返回图片数量（可选，默认5）
 
 **示例**:
+
 ```
 GET /api/scrape-images?q=北京故宫景点&count=3
 ```
 
 **响应**:
+
 ```json
 {
   "query": "北京故宫景点",
@@ -763,9 +803,11 @@ GET /api/scrape-images?q=北京故宫景点&count=3
 ```
 
 #### POST `/api/extract-entities`
+
 实体提取API（服务器端）。
 
 **请求体**:
+
 ```json
 {
   "message": "I recommend visiting the Eiffel Tower and trying French cuisine",
@@ -775,6 +817,7 @@ GET /api/scrape-images?q=北京故宫景点&count=3
 ```
 
 **响应**:
+
 ```json
 {
   "entities": [
@@ -795,6 +838,7 @@ GET /api/scrape-images?q=北京故宫景点&count=3
 ### 认证相关
 
 #### `/api/auth/[...all]`
+
 Better Auth处理的所有认证请求。
 
 ---
@@ -804,7 +848,9 @@ Better Auth处理的所有认证请求。
 ### 聊天界面设计
 
 #### 消息顺序
+
 完全按时间顺序（`created_at`）显示，不按轮次分组：
+
 ```
 12:00 Planner (Round 1)
 12:01 Reality Checker (Round 1)
@@ -815,13 +861,16 @@ Better Auth处理的所有认证请求。
 ```
 
 #### 视觉区分
+
 - **Planner**: 蓝色气泡 📋
 - **Reality Checker**: 紫色气泡 🔍
 - **Budget Advisor**: 绿色气泡 💰
 - **User**: 灰色气泡（右对齐）
 
 #### 引用样式
-当消息有`replyToId`时，在气泡上方显示被引用内容：
+
+当消息有 `replyToId`时，在气泡上方显示被引用内容：
+
 ```
 ┌────────────────────────────┐
 │ 📌 Planner: 我建议第一天... │ ← 引用标记
@@ -877,6 +926,7 @@ Better Auth处理的所有认证请求。
 **错误**: `Failed query` 或 `ENOTFOUND`
 
 **解决**:
+
 ```bash
 # 检查DATABASE_URL
 cat .env | grep DATABASE_URL
@@ -892,6 +942,7 @@ psql $DATABASE_URL -c "SELECT 1"
 **错误**: `401 Unauthorized`
 
 **解决**:
+
 ```bash
 # 检查API密钥
 cat .env | grep API_KEY
@@ -914,6 +965,7 @@ curl -X POST https://api.deepseek.com/v1/chat/completions \
 **错误**: `relation "discussion_messages" does not exist`
 
 **解决**:
+
 ```bash
 # 重新推送schema
 npm run db:push
@@ -930,6 +982,7 @@ npm run db:studio
 **错误**: `[Entity Extraction] API error: 401`
 
 **解决**:
+
 ```bash
 # 检查DeepSeek API Key
 cat .env | grep DEEPSEEK_API_KEY
@@ -945,12 +998,14 @@ cat .env | grep USE_MOCK_API
 ### 5. 图片不显示
 
 **检查清单**:
+
 - [ ] 控制台是否有 `[BingScraper]` 日志？
 - [ ] 是否有 `Rate limiting: waiting` 日志（说明在限流）？
 - [ ] 是否有 `Using cached results` 日志（说明使用了缓存）？
-- [ ] 实体是否被正确提取（查看`extracted entities`日志）？
+- [ ] 实体是否被正确提取（查看 `extracted entities`日志）？
 
 **解决**:
+
 ```bash
 # 查看图片搜索日志
 [BingScraper] Scraping Bing Images for: 北京故宫景点
@@ -968,6 +1023,7 @@ cat .env | grep USE_MOCK_API
 **错误**: TypeScript或build错误
 
 **解决**:
+
 ```bash
 # 清除缓存
 rm -rf .next
@@ -983,6 +1039,7 @@ npm run dev
 ### 7. 消息不更新
 
 **检查**:
+
 - 轮询是否正常（2秒间隔）
 - sessionId是否正确
 - `/api/discuss/[sessionId]`是否返回新消息
@@ -1022,6 +1079,7 @@ npm start
 ### 推荐部署平台
 
 #### Vercel（推荐）
+
 ```bash
 # 安装Vercel CLI
 npm i -g vercel
@@ -1031,6 +1089,7 @@ vercel
 ```
 
 #### Docker
+
 ```dockerfile
 FROM node:18-alpine
 WORKDIR /app
@@ -1045,6 +1104,7 @@ CMD ["npm", "start"]
 ### 环境变量安全提示
 
 **⚠️ 重要**:
+
 - 永远不要将 `.env` 文件提交到Git
 - 使用 `.env.example` 作为模板
 - 在部署平台的环境变量设置中配置密钥
@@ -1059,6 +1119,7 @@ CMD ["npm", "start"]
 ### 添加新的AI Agent
 
 1. **更新配置** (`src/lib/api-config.ts`):
+
 ```typescript
 export const apiConfig = {
   models: {
@@ -1071,6 +1132,7 @@ export const apiConfig = {
 ```
 
 2. **更新提示词** (`src/lib/prompts.ts`):
+
 ```typescript
 export const SYSTEM_PROMPTS = {
   newAgent: `You are a...`,
@@ -1078,6 +1140,7 @@ export const SYSTEM_PROMPTS = {
 ```
 
 3. **更新UI** (`src/components/app/ActiveDiscussion.tsx`):
+
 ```typescript
 const agents = ["planner", "realityChecker", "budgetAdvisor", "newAgent"];
 ```
@@ -1115,16 +1178,19 @@ const CACHE_DURATION = 5 * 60 * 1000;  // 缓存时长
 ## 性能优化
 
 ### 数据库
+
 - 使用连接池（`DATABASE_URL`）
 - 已创建索引优化查询
 - 轮询间隔2秒（减少服务器负载）
 
 ### API调用
+
 - 异步处理，不阻塞响应
 - Token限制控制成本
 - 错误重试机制
 
 ### 图片搜索
+
 - 智能缓存（5分钟）
 - 请求限流（2秒最小间隔）
 - 最多显示10张图片
@@ -1138,6 +1204,7 @@ const CACHE_DURATION = 5 * 60 * 1000;  // 缓存时长
 #### 🎉 重大功能更新
 
 **1. 智能天数推荐系统**
+
 - ✅ 支持用户明确指定天数（如"成都3天"、"重庆5日游"）
 - ✅ 支持多目的地分段规划（如"成都2天，重庆3天"）
 - ✅ AI智能推荐天数：
@@ -1147,12 +1214,14 @@ const CACHE_DURATION = 5 * 60 * 1000;  // 缓存时长
 - ✅ 新增 `duration` 字段到数据库，存储推荐天数
 
 **2. 多轮对话功能**
+
 - ✅ 讨论完成后可继续发送消息
 - ✅ AI实时回复用户问题（支持修改建议、细节询问）
 - ✅ 改进消息去重逻辑（基于 `replyToId` 精确匹配）
 - ✅ 支持多轮交互，优化用户体验
 
 **3. 图片去重优化**
+
 - ✅ **双重去重机制**：
   - 关键词时间窗口去重（5分钟内不重复）
   - 图片URL去重（完全相同的图片不重复显示）
@@ -1160,6 +1229,7 @@ const CACHE_DURATION = 5 * 60 * 1000;  // 缓存时长
 - ✅ 最多显示10张最新图片
 
 **4. 用户体验改进**
+
 - ✅ **默认选中所有AI模型** - 打开讨论即可直接输入
 - ✅ 改进错误提示 - AI回复失败时显示具体错误信息
 - ✅ 优化轮询频率 - 从500ms降至2秒，减少服务器负载75%
